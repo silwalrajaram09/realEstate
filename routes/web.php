@@ -2,15 +2,24 @@
 
 use Illuminate\Support\Facades\Route;
 
-use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\PropertyController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\BuyerDashboardController;
-use App\Http\Controllers\SellrDashboardController;
-use App\Http\Controllers\AgentDashboardController;
+use App\Http\Controllers\SellerDashboardController;
 use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\Seller\PropertyController as SellerPropertyController;
 
-use App\Livewire\Auth\Login;
+/*
+|--------------------------------------------------------------------------
+| Landing Page (Guests only)
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/', function () {
+    return auth()->check()
+        ? redirect()->route('dashboard')
+        : view('welcome');
+})->name('home');
 
 /*
 |--------------------------------------------------------------------------
@@ -18,126 +27,89 @@ use App\Livewire\Auth\Login;
 |--------------------------------------------------------------------------
 */
 
-Route::get('/', function () {
-    return view('welcome');
-});
-
 Route::get('/buy', [PropertyController::class, 'buy'])->name('buy.filter');
 Route::get('/sell', [PropertyController::class, 'sell'])->name('sell.filter');
 Route::get('/properties', [PropertyController::class, 'index'])->name('properties.index');
 
-
 /*
 |--------------------------------------------------------------------------
-| Authenticated CRUD Routes for Properties
+| Authenticated Routes
 |--------------------------------------------------------------------------
 */
 
 Route::middleware(['auth'])->group(function () {
 
-    // Property CRUD
-    Route::get('/properties/create', [PropertyController::class, 'create'])
-        ->name('properties.create');
+    /*
+    |--------------------------------------------------------------------------
+    | Profile Management
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('profile')->name('profile.')->group(function () {
+        Route::get('/', [ProfileController::class, 'edit'])->name('edit');
+        Route::put('/', [ProfileController::class, 'update'])->name('update');
+        Route::delete('/', [ProfileController::class, 'destroy'])->name('destroy');
+    });
 
-    Route::post('/properties', [PropertyController::class, 'store'])
-        ->name('properties.store');
+    /*
+    |--------------------------------------------------------------------------
+    | Role-Based Dashboards
+    |--------------------------------------------------------------------------
+    */
 
-    Route::get('/properties/{property}/edit', [PropertyController::class, 'edit'])
-        ->name('properties.edit');
+    // Buyer Routes
+    Route::middleware('role:customer')->group(function () {
+        Route::get('/buyer/dashboard', [BuyerDashboardController::class, 'index'])
+            ->name('buyer.dashboard');
 
-    Route::put('/properties/{property}', [PropertyController::class, 'update'])
-        ->name('properties.update');
+        Route::get('/suggestions', [PropertyController::class, 'suggestions'])
+            ->name('properties.suggestions');
 
-    Route::delete('/properties/{property}', [PropertyController::class, 'destroy'])
-        ->name('properties.destroy');
+        Route::get('/buyer/buy', [PropertyController::class, 'buy'])
+            ->name('properties.buy');
+    });
+
+    // Seller Routes
+    Route::middleware('role:owner')->group(function () {
+        Route::get('/seller/dashboard', [SellerDashboardController::class, 'index'])
+            ->name('seller.dashboard');
+
+        // Seller property CRUD using Seller\PropertyController
+        Route::prefix('seller')->name('seller.')->group(function () {
+            Route::resource('properties', SellerPropertyController::class);
+        });
+    });
+
+    // Admin Routes
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])
+            ->name('admin.dashboard');
+
+        // Future admin routes (manage users, properties, algorithm)
+    });
 
 });
 
-
 /*
 |--------------------------------------------------------------------------
-| Profile Management (Single Definition)
-|--------------------------------------------------------------------------
-*/
-
-Route::middleware(['auth'])->group(function () {
-
-    Route::get('/profile', [ProfileController::class, 'edit'])
-        ->name('profile.edit');
-
-    Route::put('/profile', [ProfileController::class, 'update'])
-        ->name('profile.update');
-
-    Route::delete('/profile', [ProfileController::class, 'destroy'])
-        ->name('profile.destroy');
-
-});
-
-
-/*
-|--------------------------------------------------------------------------
-| Role Based Dashboards
-|--------------------------------------------------------------------------
-*/
-
-Route::middleware(['auth','role:customer'])
-    ->get('/buyer/dashboard', [BuyerDashboardController::class,'index'])
-    ->name('buyer.dashboard');
-
-Route::middleware(['auth','role:owner'])
-    ->get('/seller/dashboard', [SellrDashboardController::class,'index'])
-    ->name('seller.dashboard');
-
-Route::middleware(['auth','role:agent'])
-    ->get('/agent/dashboard', [AgentDashboardController::class,'index'])
-    ->name('agent.dashboard');
-
-// Route::middleware(['auth','role:admin'])
-//     ->get('/admin/dashboard', [AdminDashboardController::class,'index'])
-//     ->name('admin.dashboard');
-
-
-/*
-|--------------------------------------------------------------------------
-| Main /dashboard entry → redirect according to role
+| Main Dashboard Redirect (Role Router)
 |--------------------------------------------------------------------------
 */
 
 Route::get('/dashboard', function () {
-
     $user = auth()->user();
 
-    $role = $user->role;
-
-    return match ($role) {
-
+    return match ($user->role) {
         'customer' => redirect()->route('buyer.dashboard'),
-
         'owner'    => redirect()->route('seller.dashboard'),
-
-        'agent'    => redirect()->route('agent.dashboard'),
-
         'admin'    => redirect()->route('admin.dashboard'),
-
-        default    => redirect('/dashboard'),
-
+        default    => abort(403),
     };
-
-})->middleware(['auth','verified'])->name('dashboard');
-
+})->middleware(['auth', 'verified'])->name('dashboard');
 
 /*
 |--------------------------------------------------------------------------
-| Property Suggestions only for Buyer
+| Auth Routes (Laravel Breeze)
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth','role:customer'])->group(function () {
-
-    Route::get('/suggestions', [PropertyController::class,'suggestions'])
-        ->name('properties.suggestions');
-
-});
-
-
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

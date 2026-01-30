@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\User;
 
 class Property extends Model
 {
@@ -23,4 +24,8 @@ class Property extends Model
         'water',
         'user_id',
     ];
+     public function seller()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 }

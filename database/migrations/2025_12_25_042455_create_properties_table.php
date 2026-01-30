@@ -35,7 +35,7 @@ return new class extends Migration
             // Extra features (for algorithm)
             $table->boolean('parking')->default(false);
             $table->boolean('water')->default(true);
-
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
             // Owner / Agent
             // $table->foreignId('user_id')->nullable()
             //       ->constrained()->nullOnDelete();
