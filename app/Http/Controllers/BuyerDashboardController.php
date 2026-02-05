@@ -23,7 +23,7 @@ class BuyerDashboardController extends Controller
         ];
 
         // Get featured/recent properties
-        $recentProperties = Property::approved()->latest()->take(6)->get();
+        $recentProperties = Property::approved()->latest()->take(value: 6)->get();
 
         return view('buyer.dashboard', compact('stats', 'recentProperties'));
     }

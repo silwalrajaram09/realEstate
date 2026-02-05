@@ -2,12 +2,12 @@
     function activeClass($condition)
     {
         return $condition
-            ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
-            : 'text-gray-700';
+            ? 'text-blue-600 font-semibold border-b-2 border-blue-600 dark:text-blue-400 dark:border-blue-400'
+            : 'text-gray-700 dark:text-gray-300';
     }
 @endphp
 
-<nav class="bg-white shadow-md sticky top-0 z-50">
+<nav class="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50 transition-colors duration-200">
     <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-6">
 
         {{-- LOGO --}}
