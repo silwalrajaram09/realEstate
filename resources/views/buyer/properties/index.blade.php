@@ -141,6 +141,67 @@
                             </div>
                         </div>
 
+{{-- Location Coordinates (Hidden - for GPS-based search) --}}
+                        <input type="hidden" name="lat" id="lat" value="{{ request('lat') }}">
+                        <input type="hidden" name="lng" id="lng" value="{{ request('lng') }}">
+
+                        {{-- Location Search --}}
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Location</label>
+                            <button 
+                                type="button" 
+                                onclick="getCurrentLocation()"
+                                class="w-full flex items-center justify-center gap-2 py-2.5 px-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                            >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                                <span id="location-text">Use my current location</span>
+                            </button>
+                            @if(request('lat') && request('lng'))
+                                <p class="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                    ✓ Location set ({{ number_format(request('lat'), 4) }}, {{ number_format(request('lng'), 4) }})
+                                    <a href="{{ route('buyer.properties') }}" class="ml-2 text-red-500 hover:text-red-700">(clear)</a>
+                                </p>
+                            @endif
+                        </div>
+
+                        {{-- HOW LOCATION-BASED SEARCH WORKS:
+                             1. User clicks "Use my current location" → Browser GPS captures coordinates
+                             2. JavaScript fills hidden inputs: lat=27.7172, lng=85.3240
+                             3. User clicks "Apply Filters" → Form submits with all filters INCLUDING lat/lng
+                             4. Controller receives request → calls PropertyRecommendationService->search()
+                             5. Service calculates distance using Haversine formula for each property
+                             6. Distance score added to relevance_score (properties within 50km get points)
+                             7. Results sorted by total relevance_score (nearest properties ranked higher)
+                        --}}
+
+                        @push('scripts')
+                        <script>
+                            function getCurrentLocation() {
+                                if (navigator.geolocation) {
+                                    navigator.geolocation.getCurrentPosition(
+                                        function(position) {
+                                            document.getElementById('lat').value = position.coords.latitude.toFixed(6);
+                                            document.getElementById('lng').value = position.coords.longitude.toFixed(6);
+                                            document.getElementById('location-text').textContent = 'Location set!';
+                                            document.getElementById('location-text').classList.add('text-green-600');
+                                        },
+                                        function(error) {
+                                            alert('Unable to get location: ' + error.message);
+                                        }
+                                    );
+                                } else {
+                                    alert('Geolocation is not supported by your browser.');
+                                }
+                            }
+                        </script>
+                        @endpush
+
                         {{-- Bedrooms --}}
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bedrooms</label>
