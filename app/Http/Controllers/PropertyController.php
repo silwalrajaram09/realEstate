@@ -1,37 +1,46 @@
 <?php
 
 namespace App\Http\Controllers;
+
 use App\Models\Property;
 use Illuminate\Http\Request;
+use App\Services\PropertySearchService;
 
 class PropertyController extends Controller
 {
-    public function buy(Request $request)
+    /**
+     * Unified property listing/search method
+     */
+    public function list(Request $request, PropertySearchService $service)
     {
-        $properties = Property::where('purpose', 'buy')
-            ->when($request->type, fn($q) =>
-                $q->where('type', $request->type))
-            ->get();
+        // Get all filters from request
+        $filters = $request->only(['purpose', 'type', 'category', 'q']);
+
+        // Use service to get filtered properties
+        $properties = $service->search($filters);
 
         return view('properties.list', compact('properties'));
     }
 
-    public function sell(Request $request)
+    /**
+     * Show single property with recommendations
+     */
+    public function show(Property $property)
     {
-        $properties = Property::where('purpose', 'sell')
-            ->when($request->type, fn($q) =>
-                $q->where('type', $request->type))
+        $recommendations = Property::query()
+            ->where('id', '!=', $property->id)
+            ->where('type', $property->type)
+            ->whereBetween('price', [
+                $property->price * 0.9,
+                $property->price * 1.1
+            ])
+            ->orderByRaw("
+                (location = ?) DESC,
+                ABS(price - ?) ASC
+            ", [$property->location, $property->price])
+            ->limit(6)
             ->get();
 
-        return view('properties.list', compact('properties'));
-    }
-
-    public function index(Request $request)
-    {
-        $properties = Property::when($request->category, fn($q) =>
-            $q->where('category', $request->category))
-            ->get();
-
-        return view('properties.list', compact('properties'));
+        return view('properties.show', compact('property', 'recommendations'));
     }
 }
