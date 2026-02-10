@@ -11,13 +11,13 @@ use Illuminate\Support\Facades\Cache;
 class PropertyRecommendationService
 {
     private const WEIGHTS = [
-        'price' => 30,
-        'type' => 20,
-        'purpose' => 15,
+        'price' => 25,
+        'type' => 15,
+        'purpose' => 10,
         'bedrooms' => 10,
         'bathrooms' => 5,
-        'text' => 15,
-        'location' => 5,
+        'text' => 10,
+        'location' => 25,  // Increased from 5 to 25 - location should be primary factor
     ];
 
     private const TOLERANCE = [
@@ -27,7 +27,7 @@ class PropertyRecommendationService
     ];
 
     private const EARTH_RADIUS = 6371; // km
-    private const LOCATION_RADIUS = 10; // km, smaller to avoid other cities
+    private const LOCATION_RADIUS = 50; // km, increased for Nepal context (Kathmandu Valley + surrounding areas)
 
     // public function search(array $filters, int $perPage = 12): LengthAwarePaginator
     // {
@@ -216,8 +216,23 @@ class PropertyRecommendationService
     {
         if (empty($data['q']))
             return;
-        $like = '%' . $data['q'] . '%';
-        $parts[] = "( (CASE WHEN title LIKE ? THEN 3 ELSE 0 END) + (CASE WHEN location LIKE ? THEN 2 ELSE 0 END) + (CASE WHEN description LIKE ? THEN 1 ELSE 0 END) )";
+
+        $search = strtolower(trim($data['q']));
+
+        // SIMPLE DIRECT SEARCH - No complex regional grouping
+        // This fixes the bug where searching "surkhet" didn't return Surkhet properties
+
+        $like = '%' . $search . '%';
+
+        // Scoring:
+        // - Match in location = highest (10 pts) - most important for location search
+        // - Match in title = medium (5 pts)
+        // - Match in description = lower (2 pts)
+
+        $parts[] = "CASE WHEN LOWER(location) LIKE ? THEN 10 ELSE 0 END";
+        $parts[] = "CASE WHEN LOWER(title) LIKE ? THEN 5 ELSE 0 END";
+        $parts[] = "CASE WHEN LOWER(description) LIKE ? THEN 2 ELSE 0 END";
+
         array_push($bindings, $like, $like, $like);
     }
 
@@ -225,8 +240,20 @@ class PropertyRecommendationService
     {
         if (empty($data['lat']) || empty($data['lng']))
             return;
-        $parts[] = "CASE WHEN latitude IS NOT NULL AND longitude IS NOT NULL THEN GREATEST(0, ? * (1 - ((? * acos(cos(radians(?)) * cos(radians(latitude)) * cos(radians(longitude) - radians(?)) + sin(radians(?)) * sin(radians(latitude)))) / ?))) ELSE 0 END";
-        array_push($bindings, self::WEIGHTS['location'], self::EARTH_RADIUS, $data['lat'], $data['lng'], $data['lat'], self::LOCATION_RADIUS);
+
+        // Properties WITH coordinates get positive score based on distance
+        // Properties WITHOUT coordinates get NEGATIVE score (-50) to push them to bottom
+        $parts[] = "CASE WHEN latitude IS NOT NULL AND longitude IS NOT NULL THEN GREATEST(0, ? * (1 - (? * acos(cos(radians(?)) * cos(radians(latitude)) * cos(radians(longitude) - radians(?)) + sin(radians(?)) * sin(radians(latitude))) / ?))) ELSE -50 END";
+
+        array_push(
+            $bindings,
+            self::WEIGHTS['location'],     // weight (25)
+            self::EARTH_RADIUS,            // Earth's radius (6371)
+            $data['lat'],                  // user's latitude
+            $data['lng'],                  // user's longitude
+            $data['lat'],                  // user's latitude again
+            self::LOCATION_RADIUS          // radius (50km)
+        );
     }
 
     public function stats(): array

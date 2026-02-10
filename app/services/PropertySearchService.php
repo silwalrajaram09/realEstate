@@ -49,36 +49,51 @@ class PropertySearchService
 
         // -------------------- TEXT SEARCH --------------------
         if (!empty($data['q'])) {
-            $search = '%' . $data['q'] . '%';
+            $search = strtolower(trim($data['q']));
+
+            // SIMPLE DIRECT SEARCH - No complex regional grouping
+            // This fixes the bug where searching "surkhet" didn't return Surkhet properties
+
+            $like = '%' . $search . '%';
+
+            // Build simple scoring conditions
+            // Scoring:
+            // - Match in location = highest (10 pts) - most important for location search
+            // - Match in title = medium (5 pts)
+            // - Match in description = lower (2 pts)
+
             $query->selectRaw("
                 properties.*,
                 (
-                    (title LIKE ?) * 5 +
-                    (location LIKE ?) * 4 +
-                    (description LIKE ?) * 2
+                    CASE WHEN LOWER(location) LIKE ? THEN 10 ELSE 0 END +
+                    CASE WHEN LOWER(title) LIKE ? THEN 5 ELSE 0 END +
+                    CASE WHEN LOWER(description) LIKE ? THEN 2 ELSE 0 END
                 ) AS relevance_score
-            ", [$search, $search, $search])
+            ", [$like, $like, $like])
                 ->orderByDesc('relevance_score');
         } else {
             $query->select('properties.*');
         }
 
         // -------------------- SORTING --------------------
-        $sort = $data['sort'] ?? 'latest';
-        switch ($sort) {
-            case 'price_asc':
-                $query->orderBy('price', 'asc');
-                break;
-            case 'price_desc':
-                $query->orderBy('price', 'desc');
-                break;
-            case 'oldest':
-                $query->orderBy('created_at', 'asc');
-                break;
-            case 'latest':
-            default:
-                $query->orderBy('created_at', 'desc');
-                break;
+        // When text search is used, always prioritize relevance score
+        // Only use date/price sorting when no text search or explicitly requested
+        $sort = $data['sort'] ?? 'relevance';
+
+        // If relevance sorting or no sort specified with text search, skip additional sorting
+        $hasTextSearch = !empty($data['q']);
+
+        if ($sort === 'price_asc') {
+            $query->orderBy('price', 'asc');
+        } elseif ($sort === 'price_desc') {
+            $query->orderBy('price', 'desc');
+        } elseif ($sort === 'oldest' && !$hasTextSearch) {
+            $query->orderBy('created_at', 'asc');
+        } elseif ($sort === 'latest' && !$hasTextSearch) {
+            $query->orderBy('created_at', 'desc');
+        } elseif ($hasTextSearch) {
+            // With text search: relevance is primary, use created_at as tie-breaker (newest first)
+            $query->orderByDesc('created_at');
         }
 
         $perPage = min(max((int) ($data['per_page'] ?? 12), 6), 48);
@@ -154,7 +169,7 @@ class PropertySearchService
     //min and max price range scoring with tolerance
     public function recommend(array $data)
     {
-        if (empty($data['min_price']) || empty($data['max_price'])) {
+        if (empty($data['min_price']) && empty($data['max_price'])) {
             // fallback: just use max_price for sorting if no min-max
             return Property::approved()
                 ->when(!empty($data['type']), fn($q) => $q->where('type', $data['type']))
@@ -167,6 +182,22 @@ class PropertySearchService
                 ->limit(10)
                 ->get();
         }
+
+        // Calculate tolerance
+        $minTolerance = $data['min_price'] - ($data['min_price'] * 0.10); // 10% below min
+        $maxTolerance = $data['max_price'] + ($data['max_price'] * 0.10); // 10% above max
+
+        return Property::approved()
+            ->when(!empty($data['type']), fn($q) => $q->where('type', $data['type']))
+            ->when(!empty($data['category']), fn($q) => $q->where('category', $data['category']))
+            ->when(!empty($data['q']), fn($q) => $q->where(
+                fn($sub) => $sub->where('title', 'LIKE', "%{$data['q']}%")
+                    ->orWhere('location', 'LIKE', "%{$data['q']}%")
+            ))
+            ->whereBetween('price', [$minTolerance, $maxTolerance])
+            ->orderByRaw("ABS(price - ?) ASC", [($data['min_price'] + $data['max_price']) / 2])
+            ->limit(10)
+            ->get();
     }
 
     //     $minTolerance = $data['min_price'] - ($data['min_price'] * 0.10); // 10% below min

@@ -12,18 +12,17 @@ return new class extends Migration {
     {
         Schema::create('properties', function (Blueprint $table) {
             $table->id();
-
             $table->string('title');
             $table->text('description')->nullable();
 
             // Buy or Sell
-            $table->enum('purpose', ['buy', 'sell']);
+            $table->string('purpose')->default('buy');
 
-            // Flat, House, Land
-            $table->enum('type', ['flat', 'house', 'land']);
+            // Flat, House, Land, Commercial, Office, Warehouse
+            $table->string('type')->default('flat');
 
-            // Residential / Commercial
-            $table->enum('category', ['residential', 'commercial']);
+            // Residential / Commercial / Industrial
+            $table->string('category')->default('residential');
 
             $table->decimal('price', 12, 2);
             $table->string('location');
@@ -34,9 +33,10 @@ return new class extends Migration {
             // Extra features (for algorithm)
             $table->boolean('parking')->default(false);
             $table->boolean('water')->default(true);
+
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
 
-            $table->string('status')->default('approved');
+            $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
 
             $table->timestamps();
         });
@@ -47,7 +47,10 @@ return new class extends Migration {
             $table->index(['purpose', 'type']);
             $table->index(['price']);
             $table->index(['location']);
-            $table->fullText(['title', 'location']);
+
+            // Full-text index for title and description search
+            $table->text('title')->fullText()->change();
+            $table->text('description')->nullable()->fullText()->change();
         });
     }
 

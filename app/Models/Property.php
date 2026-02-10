@@ -12,29 +12,99 @@ class Property extends Model
     use HasFactory;
 
     protected $fillable = [
+        // Basic Info
         'title',
         'description',
         'purpose',
         'type',
         'category',
+
+        // Pricing & Location
         'price',
+        'min_lease_months',
         'location',
+        'latitude',
+        'longitude',
+
+        // Size & Images
+        'area',
+        'image',
+
+        // Residential Fields
         'bedrooms',
         'bathrooms',
-        'area',
+        'floor_no',
+        'year_built',
+
+        // Commercial Fields
+        'total_floors',
+        'parking_spaces',
+
+        // Land Fields
+        'road_access',
+        'facing',
+        'land_shape',
+        'plot_number',
+
+        // Industrial Fields
+        'clear_height',
+        'loading_docks',
+        'power_supply',
+
+        // Features & Amenities
         'parking',
         'water',
-        'user_id',
+        'electricity',
+        'security',
+        'garden',
+        'balcony',
+        'gym',
+        'lift',
+        'ac',
+        'fire_safety',
+        'internet',
+        'loading_area',
+
+        // Availability & Status
+        'available_from',
         'status',
+
+        // Ownership
+        'ownership_type',
+        'contact_number',
+
+        // Relations
+        'user_id',
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
+        'area' => 'integer',
+        'latitude' => 'decimal:8',
+        'longitude' => 'decimal:8',
         'bedrooms' => 'integer',
         'bathrooms' => 'integer',
-        'area' => 'integer',
+        'floor_no' => 'integer',
+        'total_floors' => 'integer',
+        'year_built' => 'integer',
+        'road_access' => 'integer',
+        'parking_spaces' => 'integer',
+        'clear_height' => 'decimal:2',
+        'loading_docks' => 'integer',
+        'power_supply' => 'integer',
         'parking' => 'boolean',
         'water' => 'boolean',
+        'electricity' => 'boolean',
+        'security' => 'boolean',
+        'garden' => 'boolean',
+        'balcony' => 'boolean',
+        'gym' => 'boolean',
+        'lift' => 'boolean',
+        'ac' => 'boolean',
+        'fire_safety' => 'boolean',
+        'internet' => 'boolean',
+        'loading_area' => 'boolean',
+        'available_from' => 'date',
     ];
 
     /**
@@ -43,14 +113,6 @@ class Property extends Model
     public function seller(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
-    }
-
-    /**
-     * Scope a query to only include approved properties.
-     */
-    public function scopeApproved($query)
-    {
-        return $query->where('status', 'approved');
     }
 
     /**
@@ -139,11 +201,36 @@ class Property extends Model
     }
 
     /**
+     * Scope a query for residential properties.
+     */
+    public function scopeResidential($query)
+    {
+        return $query->where('category', 'residential');
+    }
+
+    /**
+     * Scope a query for commercial properties.
+     */
+    public function scopeCommercial($query)
+    {
+        return $query->where('category', 'commercial');
+    }
+
+    /**
+     * Scope a query for industrial properties.
+     */
+    public function scopeIndustrial($query)
+    {
+        return $query->where('category', 'industrial');
+    }
+
+    /**
      * Get formatted price.
      */
     public function getFormattedPriceAttribute()
     {
-        return 'Rs ' . number_format($this->price);
+        $prefix = $this->purpose === 'rent' ? 'Rs/month' : 'Rs';
+        return $prefix . ' ' . number_format($this->price);
     }
 
     /**
@@ -151,6 +238,103 @@ class Property extends Model
      */
     public function getImageUrlAttribute()
     {
-        return $this->image ? asset('images/' . $this->image) : null;
+        return $this->image ? asset('images/' . $this->image) : asset('images/image1.jpg');
+    }
+
+    /**
+     * Get property type label.
+     */
+    public function getTypeLabelAttribute()
+    {
+        $labels = [
+            'flat' => 'Flat/Apartment',
+            'house' => 'House',
+            'land' => 'Land/Plot',
+            'commercial' => 'Commercial Space',
+            'office' => 'Office',
+            'warehouse' => 'Warehouse',
+        ];
+
+        return $labels[$this->type] ?? $this->type;
+    }
+
+    /**
+     * Get purpose label.
+     */
+    public function getPurposeLabelAttribute()
+    {
+        return $this->purpose === 'rent' ? 'For Rent' : 'For Sale';
+    }
+
+    /**
+     * Get category label.
+     */
+    public function getCategoryLabelAttribute()
+    {
+        $labels = [
+            'residential' => 'Residential',
+            'commercial' => 'Commercial',
+            'industrial' => 'Industrial',
+        ];
+
+        return $labels[$this->category] ?? $this->category;
+    }
+
+    /**
+     * Get status label.
+     */
+    public function getStatusLabelAttribute()
+    {
+        $labels = [
+            'pending' => 'Pending',
+            'approved' => 'Approved',
+            'rejected' => 'Rejected',
+        ];
+
+        return $labels[$this->status] ?? $this->status;
+    }
+
+    /**
+     * Check if property is available.
+     */
+    public function getIsAvailableAttribute()
+    {
+        return $this->status === 'available';
+    }
+
+    /**
+     * Get all features as an array.
+     */
+    public function getFeaturesAttribute()
+    {
+        $features = [];
+
+        if ($this->parking)
+            $features[] = 'Parking';
+        if ($this->water)
+            $features[] = 'Water Supply';
+        if ($this->electricity)
+            $features[] = 'Electricity';
+        if ($this->security)
+            $features[] = 'Security';
+        if ($this->garden)
+            $features[] = 'Garden';
+        if ($this->balcony)
+            $features[] = 'Balcony';
+        if ($this->gym)
+            $features[] = 'Gym';
+        if ($this->lift)
+            $features[] = 'Lift';
+        if ($this->ac)
+            $features[] = 'AC';
+        if ($this->fire_safety)
+            $features[] = 'Fire Safety';
+        if ($this->internet)
+            $features[] = 'Internet';
+        if ($this->loading_area)
+            $features[] = 'Loading Area';
+
+        return $features;
     }
 }
+
