@@ -30,10 +30,10 @@
                                 Browse
                             </x-nav-link>
 
-                            <x-nav-link :href="route('buyer.properties.buy')"
-                                :active="request()->routeIs('buyer.properties.buy')">
-                                Buy
-                            </x-nav-link>
+                            <!-- <x-nav-link :href="route('buyer.properties.buy')"
+                                        :active="request()->routeIs('buyer.properties.buy')">
+                                        Buy
+                                    </x-nav-link> -->
 
                             <x-nav-link :href="route('buyer.suggestions')" :active="request()->routeIs('buyer.suggestions')">
                                 Suggestions
@@ -77,17 +77,17 @@
                     <x-dropdown align="right" width="48">
                         <x-slot name="trigger">
                             <button class="inline-flex items-center px-3 py-2
-                                                                text-sm font-medium rounded-md
-                                                                text-gray-500 dark:text-gray-400
-                                                                hover:text-gray-700 dark:hover:text-gray-300">
+                                                                    text-sm font-medium rounded-md
+                                                                    text-gray-500 dark:text-gray-400
+                                                                    hover:text-gray-700 dark:hover:text-gray-300">
 
                                 {{ Auth::user()->email }}
 
                                 <svg class="ms-1 h-4 w-4" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293
-                                                                        a1 1 0 111.414 1.414l-4 4
-                                                                        a1 1 0 01-1.414 0l-4-4
-                                                                        a1 1 0 010-1.414z" />
+                                                                            a1 1 0 111.414 1.414l-4 4
+                                                                            a1 1 0 01-1.414 0l-4-4
+                                                                            a1 1 0 010-1.414z" />
                                 </svg>
                             </button>
                         </x-slot>

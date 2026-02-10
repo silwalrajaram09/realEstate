@@ -71,12 +71,13 @@
                     @endforeach
                 </div>
 
-                @if($properties->hasPages())
+                {{-- Only render links if paginator --}}
+                @if($properties instanceof \Illuminate\Pagination\AbstractPaginator)
                     <div class="mt-8">
                         {{ $properties->links() }}
                     </div>
                 @endif
-            @else
+
                 {{-- Empty State --}}
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
                     <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
