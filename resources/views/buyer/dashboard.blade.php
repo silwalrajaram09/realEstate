@@ -15,7 +15,8 @@
                     <div class="p-6">
                         <div class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Properties</div>
                         <div class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">
-                            {{ $stats['total_properties'] ?? 0 }}</div>
+                            {{ $stats['total_properties'] ?? 0 }}
+                        </div>
                     </div>
                 </div>
 
@@ -24,7 +25,8 @@
                     <div class="p-6">
                         <div class="text-sm font-medium text-gray-500 dark:text-gray-400">For Sale</div>
                         <div class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">
-                            {{ $stats['for_sale'] ?? 0 }}</div>
+                            {{ $stats['for_sale'] ?? 0 }}
+                        </div>
                     </div>
                 </div>
 
@@ -33,7 +35,8 @@
                     <div class="p-6">
                         <div class="text-sm font-medium text-gray-500 dark:text-gray-400">For Rent</div>
                         <div class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">
-                            {{ $stats['for_rent'] ?? 0 }}</div>
+                            {{ $stats['for_rent'] ?? 0 }}
+                        </div>
                     </div>
                 </div>
 
@@ -42,7 +45,8 @@
                     <div class="p-6">
                         <div class="text-sm font-medium text-gray-500 dark:text-gray-400">Avg. Price</div>
                         <div class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">Rs
-                            {{ number_format($stats['avg_price'] ?? 0) }}</div>
+                            {{ number_format($stats['avg_price'] ?? 0) }}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -81,13 +85,13 @@
                                             <span class="text-lg font-bold text-blue-600 dark:text-blue-400">Rs
                                                 {{ number_format($property->price) }}</span>
                                             <span class="px-2 py-1 text-xs font-medium rounded-full
-                                                        @if($property->purpose === 'buy')
-                                                            bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400
-                                                        @elseif($property->purpose === 'sell')
-                                                            bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400
-                                                        @else
-                                                            bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-400
-                                                        @endif">
+                                                                                @if($property->purpose === 'buy')
+                                                                                    bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400
+                                                                                @elseif($property->purpose === 'sell')
+                                                                                    bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400
+                                                                                @else
+                                                                                    bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-400
+                                                                                @endif">
                                                 {{ ucfirst($property->purpose) }}
                                             </span>
                                         </div>

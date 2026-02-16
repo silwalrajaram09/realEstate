@@ -36,7 +36,7 @@
 
     {{-- Features Section --}}
     <section class="bg-gray-50 py-20">
-        <div class="max-w-7xl mx-auto px-6 grid md:grid-cols-3 gap-8 text-center">
+        <div class="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-8 text-center">
             <div class="p-8 bg-white rounded-2xl shadow hover:shadow-xl transition transform hover:-translate-y-1">
                 <h3 class="text-2xl font-semibold mb-4">For Buyers</h3>
                 <p class="text-gray-600">Recommend properties based on your budget and preferences.</p>
@@ -45,10 +45,7 @@
                 <h3 class="text-2xl font-semibold mb-4">For Sellers</h3>
                 <p class="text-gray-600">List and manage your properties easily and efficiently.</p>
             </div>
-            <div class="p-8 bg-white rounded-2xl shadow hover:shadow-xl transition transform hover:-translate-y-1">
-                <h3 class="text-2xl font-semibold mb-4">For Agents</h3>
-                <p class="text-gray-600">Connect with buyers and sellers and manage your deals efficiently.</p>
-            </div>
+
         </div>
     </section>
 

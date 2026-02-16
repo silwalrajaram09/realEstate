@@ -123,10 +123,13 @@ class PropertySearchService
             'bedrooms' => $data['bedrooms'] ?? null,
             'bathrooms' => $data['bathrooms'] ?? null,
             'sort' => $data['sort'] ?? 'latest',
+            'page' => request()->get('page', 1),    // ← add
+            'per_page' => $data['per_page'] ?? 12,      // ← add
         ];
 
         return 'properties_' . md5(serialize($relevantData));
     }
+
 
     public function clearCache(): void
     {

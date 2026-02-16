@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\PropertyController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\BuyerDashboardController;
 use App\Http\Controllers\SellerDashboardController;
 use App\Http\Controllers\AdminDashboardController;
@@ -16,11 +17,12 @@ use App\Http\Controllers\Seller\PropertyController as SellerPropertyController;
 |--------------------------------------------------------------------------
 */
 
-Route::get('/', function () {
-    return auth()->check()
-        ? redirect()->route('dashboard')
-        : view('welcome');
-})->name('home');
+// Route::get('/', function () {
+//     return auth()->check()
+//         ? redirect()->route('dashboard')
+//         : view('welcome');
+// })->name('home');
+Route::get('/', [HomeController::class, 'index'])->name('home');
 
 /*
 |--------------------------------------------------------------------------

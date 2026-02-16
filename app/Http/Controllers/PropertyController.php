@@ -18,7 +18,7 @@ class PropertyController extends Controller
 
         // Use service to get filtered properties
         $properties = $service->search($filters);
-
+        //$properties = Property::latest()->take(6)->get();
         return view('properties.list', compact('properties'));
     }
 

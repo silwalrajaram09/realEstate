@@ -12,46 +12,31 @@ class Property extends Model
     use HasFactory;
 
     protected $fillable = [
-        // Basic Info
         'title',
         'description',
         'purpose',
         'type',
         'category',
-
-        // Pricing & Location
         'price',
         'min_lease_months',
         'location',
         'latitude',
         'longitude',
-
-        // Size & Images
         'area',
         'image',
-
-        // Residential Fields
         'bedrooms',
         'bathrooms',
         'floor_no',
         'year_built',
-
-        // Commercial Fields
         'total_floors',
         'parking_spaces',
-
-        // Land Fields
         'road_access',
         'facing',
         'land_shape',
         'plot_number',
-
-        // Industrial Fields
         'clear_height',
         'loading_docks',
         'power_supply',
-
-        // Features & Amenities
         'parking',
         'water',
         'electricity',
@@ -64,16 +49,10 @@ class Property extends Model
         'fire_safety',
         'internet',
         'loading_area',
-
-        // Availability & Status
         'available_from',
         'status',
-
-        // Ownership
         'ownership_type',
         'contact_number',
-
-        // Relations
         'user_id',
     ];
 
@@ -107,80 +86,76 @@ class Property extends Model
         'available_from' => 'date',
     ];
 
-    /**
-     * Get the seller (user) that owns the property.
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | Relationships
+    |--------------------------------------------------------------------------
+    */
+
     public function seller(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    /**
-     * Scope a query to filter by purpose.
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | Status Scopes
+    |--------------------------------------------------------------------------
+    */
+
+    public function scopeApproved($query)
+    {
+        return $query->where('status', 'approved');
+    }
+
+    public function scopePending($query)
+    {
+        return $query->where('status', 'pending');
+    }
+
+    public function scopeRejected($query)
+    {
+        return $query->where('status', 'rejected');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Filter Scopes
+    |--------------------------------------------------------------------------
+    */
+
     public function scopePurpose($query, $purpose)
     {
-        return $query->when($purpose, function ($q) use ($purpose) {
-            $q->where('purpose', $purpose);
-        });
+        return $query->when($purpose, fn($q) => $q->where('purpose', $purpose));
     }
 
-    /**
-     * Scope a query to filter by type.
-     */
     public function scopeType($query, $type)
     {
-        return $query->when($type, function ($q) use ($type) {
-            $q->where('type', $type);
-        });
+        return $query->when($type, fn($q) => $q->where('type', $type));
     }
 
-    /**
-     * Scope a query to filter by category.
-     */
     public function scopeCategory($query, $category)
     {
-        return $query->when($category, function ($q) use ($category) {
-            $q->where('category', $category);
-        });
+        return $query->when($category, fn($q) => $q->where('category', $category));
     }
 
-    /**
-     * Scope a query to filter by price range.
-     */
     public function scopePriceRange($query, $minPrice = null, $maxPrice = null)
     {
-        return $query->when($minPrice, function ($q) use ($minPrice) {
-            $q->where('price', '>=', $minPrice);
-        })
-            ->when($maxPrice, function ($q) use ($maxPrice) {
-                $q->where('price', '<=', $maxPrice);
-            });
+        return $query
+            ->when($minPrice, fn($q) => $q->where('price', '>=', $minPrice))
+            ->when($maxPrice, fn($q) => $q->where('price', '<=', $maxPrice));
     }
 
-    /**
-     * Scope a query to filter by minimum bedrooms.
-     */
     public function scopeMinBedrooms($query, $bedrooms)
     {
-        return $query->when($bedrooms, function ($q) use ($bedrooms) {
-            $q->where('bedrooms', '>=', (int) $bedrooms);
-        });
+        return $query->when($bedrooms, fn($q) => $q->where('bedrooms', '>=', (int) $bedrooms));
     }
 
-    /**
-     * Scope a query to filter by minimum bathrooms.
-     */
     public function scopeMinBathrooms($query, $bathrooms)
     {
-        return $query->when($bathrooms, function ($q) use ($bathrooms) {
-            $q->where('bathrooms', '>=', (int) $bathrooms);
-        });
+        return $query->when($bathrooms, fn($q) => $q->where('bathrooms', '>=', (int) $bathrooms));
     }
 
-    /**
-     * Scope a query for text search.
-     */
     public function scopeSearch($query, $search)
     {
         return $query->when($search, function ($q) use ($search) {
@@ -192,58 +167,54 @@ class Property extends Model
         });
     }
 
-    /**
-     * Scope a query to order by price.
-     */
     public function scopeOrderByPrice($query, $direction = 'asc')
     {
         return $query->orderBy('price', $direction);
     }
 
-    /**
-     * Scope a query for residential properties.
-     */
     public function scopeResidential($query)
     {
         return $query->where('category', 'residential');
     }
 
-    /**
-     * Scope a query for commercial properties.
-     */
     public function scopeCommercial($query)
     {
         return $query->where('category', 'commercial');
     }
 
-    /**
-     * Scope a query for industrial properties.
-     */
     public function scopeIndustrial($query)
     {
         return $query->where('category', 'industrial');
     }
 
-    /**
-     * Get formatted price.
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | Accessors
+    |--------------------------------------------------------------------------
+    */
+
     public function getFormattedPriceAttribute()
     {
         $prefix = $this->purpose === 'rent' ? 'Rs/month' : 'Rs';
         return $prefix . ' ' . number_format($this->price);
     }
 
-    /**
-     * Get main image URL.
-     */
     public function getImageUrlAttribute()
     {
-        return $this->image ? asset('images/' . $this->image) : asset('images/image1.jpg');
+        return $this->image
+            ? asset('storage/images/' . $this->image)
+            : asset('storage/images/image1.jpg');
     }
+    // public function getImageUrlAttribute()
+    // {
+    //     if ($this->image && file_exists(public_path('storage/images/' . $this->image))) {
+    //         return asset('storage/images/' . $this->image);
+    //     }
 
-    /**
-     * Get property type label.
-     */
+    //     return asset('storage/images/image1.jpg');
+    // }
+
+
     public function getTypeLabelAttribute()
     {
         $labels = [
@@ -258,17 +229,11 @@ class Property extends Model
         return $labels[$this->type] ?? $this->type;
     }
 
-    /**
-     * Get purpose label.
-     */
     public function getPurposeLabelAttribute()
     {
         return $this->purpose === 'rent' ? 'For Rent' : 'For Sale';
     }
 
-    /**
-     * Get category label.
-     */
     public function getCategoryLabelAttribute()
     {
         $labels = [
@@ -280,9 +245,6 @@ class Property extends Model
         return $labels[$this->category] ?? $this->category;
     }
 
-    /**
-     * Get status label.
-     */
     public function getStatusLabelAttribute()
     {
         $labels = [
@@ -294,17 +256,11 @@ class Property extends Model
         return $labels[$this->status] ?? $this->status;
     }
 
-    /**
-     * Check if property is available.
-     */
     public function getIsAvailableAttribute()
     {
-        return $this->status === 'available';
+        return $this->status === 'approved';
     }
 
-    /**
-     * Get all features as an array.
-     */
     public function getFeaturesAttribute()
     {
         $features = [];
@@ -337,4 +293,3 @@ class Property extends Model
         return $features;
     }
 }
-

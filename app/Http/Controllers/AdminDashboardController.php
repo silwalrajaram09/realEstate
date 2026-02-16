@@ -43,7 +43,7 @@ class AdminDashboardController extends Controller
      */
     public function users(Request $request)
     {
-        $users = User::latest()->paginate(20);
+        $users = User::latest()->paginate(12);
         return view('admin.users', compact('users'));
     }
 
@@ -52,7 +52,7 @@ class AdminDashboardController extends Controller
      */
     public function properties(Request $request)
     {
-        $properties = Property::with('seller')->latest()->paginate(20);
+        $properties = Property::with('seller')->latest()->paginate(12);
         return view('admin.properties', compact('properties'));
     }
 

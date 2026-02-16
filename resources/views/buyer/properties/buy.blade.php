@@ -5,8 +5,21 @@
         <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
             <div>
                 <h1 class="text-3xl font-bold text-gray-900">Properties for Sale</h1>
-                <p class="text-gray-500 mt-1">{{ $properties->total() ?? ($properties->count() ?? 0) }} properties
-                    available</p>
+                <p class="text-gray-500 mt-1">{{ $properties->total() ?? $properties->count() }} properties available
+                </p>
+            </div>
+            
+            {{-- Sort Dropdown --}}
+            <div class="mt-4 md:mt-0">
+                <select name="sort" id="sort" 
+                    class="border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    onchange="window.location.href = updateQueryStringParameter(window.location.href, 'sort', this.value)">
+                    <option value="relevance" {{ request('sort', 'relevance') == 'relevance' ? 'selected' : '' }}>Most Relevant</option>
+                    <option value="latest" {{ request('sort') == 'latest' ? 'selected' : '' }}>Newest First</option>
+                    <option value="oldest" {{ request('sort') == 'oldest' ? 'selected' : '' }}>Oldest First</option>
+                    <option value="price_asc" {{ request('sort') == 'price_asc' ? 'selected' : '' }}>Price: Low to High</option>
+                    <option value="price_desc" {{ request('sort') == 'price_desc' ? 'selected' : '' }}>Price: High to Low</option>
+                </select>
             </div>
         </div>
 
@@ -20,7 +33,7 @@
                             class="text-sm text-blue-600 hover:text-blue-700">Reset</a>
                     </div>
 
-                    <form action="{{ route('buyer.properties.buy') }}" method="GET" class="space-y-6">
+                    <form action="{{ route('buyer.properties.buy') }}" method="GET" class="space-y-6" id="filter-form">
                         {{-- Search --}}
                         <div>
                             <label for="q" class="block text-sm font-medium text-gray-700 mb-2">Search</label>
@@ -36,44 +49,158 @@
                             </div>
                         </div>
 
-                        {{-- Property Type --}}
+                        {{-- Property Type - DYNAMIC --}}
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Property Type</label>
                             <select name="type"
                                 class="w-full py-2.5 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-white">
                                 <option value="">All Types</option>
-                                <option value="flat" {{ request('type') === 'flat' ? 'selected' : '' }}>Flat</option>
-                                <option value="house" {{ request('type') === 'house' ? 'selected' : '' }}>House</option>
-                                <option value="land" {{ request('type') === 'land' ? 'selected' : '' }}>Land</option>
+                                @php
+                                    $propertyTypes = \App\Models\Property::approved()
+                                        ->where('purpose', 'buy')
+                                        ->select('type')
+                                        ->distinct()
+                                        ->pluck('type');
+                                @endphp
+                                @foreach($propertyTypes as $type)
+                                    <option value="{{ $type }}" {{ request('type') === $type ? 'selected' : '' }}>
+                                        @php
+                                            $labels = ['flat' => 'Flat/Apartment', 'house' => 'House', 'land' => 'Land/Plot', 
+                                                      'commercial' => 'Commercial Space', 'office' => 'Office', 'warehouse' => 'Warehouse'];
+                                        @endphp
+                                        {{ $labels[$type] ?? ucfirst($type) }}
+                                    </option>
+                                @endforeach
                             </select>
                         </div>
 
-                        {{-- Category --}}
+                        {{-- Category - DYNAMIC --}}
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Category</label>
                             <select name="category"
                                 class="w-full py-2.5 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-white">
                                 <option value="">All Categories</option>
-                                <option value="residential" {{ request('category') === 'residential' ? 'selected' : '' }}>
-                                    Residential</option>
-                                <option value="commercial" {{ request('category') === 'commercial' ? 'selected' : '' }}>
-                                    Commercial</option>
+                                @php
+                                    $categories = \App\Models\Property::approved()
+                                        ->where('purpose', 'buy')
+                                        ->select('category')
+                                        ->distinct()
+                                        ->pluck('category');
+                                @endphp
+                                @foreach($categories as $category)
+                                    <option value="{{ $category }}" {{ request('category') === $category ? 'selected' : '' }}>
+                                        {{ ucfirst($category) }}
+                                    </option>
+                                @endforeach
                             </select>
                         </div>
 
-                        {{-- Price Range --}}
+                        {{-- Price Range with Dynamic Min/Max --}}
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Price Range (NPR)</label>
+                            @php
+                                $minPrice = \App\Models\Property::approved()
+                                    ->where('purpose', 'buy')
+                                    ->min('price') ?? 0;
+                                $maxPrice = \App\Models\Property::approved()
+                                    ->where('purpose', 'buy')
+                                    ->max('price') ?? 100000000;
+                                $currentMin = request('min_price', $minPrice);
+                                $currentMax = request('max_price', $maxPrice);
+                            @endphp
+                            
+                            <div class="space-y-2">
+                                <div class="flex items-center gap-2">
+                                    <input type="number" name="min_price" value="{{ request('min_price') }}"
+                                        placeholder="Min ({{ number_format($minPrice) }})"
+                                        class="w-full py-2.5 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                                    <span class="text-gray-400">-</span>
+                                    <input type="number" name="max_price" value="{{ request('max_price') }}"
+                                        placeholder="Max ({{ number_format($maxPrice) }})"
+                                        class="w-full py-2.5 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                                </div>
+                                <p class="text-xs text-gray-500">Range: Rs {{ number_format($minPrice) }} - Rs {{ number_format($maxPrice) }}</p>
+                            </div>
+                        </div>
+
+                        {{-- Bedrooms - Only show for residential --}}
+                        @php
+                            $showBedrooms = in_array(request('type'), ['flat', 'house']) || empty(request('type'));
+                        @endphp
+                        <div id="bedrooms-container" @class(['hidden' => !$showBedrooms])>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Bedrooms</label>
+                            <select name="bedrooms"
+                                class="w-full py-2.5 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-white">
+                                <option value="">Any</option>
+                                @foreach(range(1, 5) as $num)
+                                    <option value="{{ $num }}" {{ request('bedrooms') == $num ? 'selected' : '' }}>
+                                        {{ $num }}+ Bedroom{{ $num > 1 ? 's' : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        {{-- Bathrooms - Only show for residential --}}
+                        <div id="bathrooms-container" @class(['hidden' => !$showBedrooms])>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Bathrooms</label>
+                            <select name="bathrooms"
+                                class="w-full py-2.5 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-white">
+                                <option value="">Any</option>
+                                @foreach(range(1, 4) as $num)
+                                    <option value="{{ $num }}" {{ request('bathrooms') == $num ? 'selected' : '' }}>
+                                        {{ $num }}+ Bathroom{{ $num > 1 ? 's' : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        {{-- Area Range --}}
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Area (sq.ft)</label>
                             <div class="flex items-center gap-2">
-                                <input type="number" name="min_price" value="{{ request('min_price') }}"
+                                <input type="number" name="min_area" value="{{ request('min_area') }}"
                                     placeholder="Min"
                                     class="w-full py-2.5 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
                                 <span class="text-gray-400">-</span>
-                                <input type="number" name="max_price" value="{{ request('max_price') }}"
+                                <input type="number" name="max_area" value="{{ request('max_area') }}"
                                     placeholder="Max"
                                     class="w-full py-2.5 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
                             </div>
                         </div>
+
+                        {{-- Amenities --}}
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Amenities</label>
+                            <div class="space-y-2 max-h-48 overflow-y-auto p-2 border border-gray-200 rounded-lg">
+                                @php
+                                    $amenities = [
+                                        'parking' => 'Parking',
+                                        'water' => 'Water Supply',
+                                        'electricity' => 'Electricity',
+                                        'security' => 'Security',
+                                        'garden' => 'Garden',
+                                        'balcony' => 'Balcony',
+                                        'gym' => 'Gym',
+                                        'lift' => 'Lift',
+                                        'ac' => 'AC',
+                                        'internet' => 'Internet'
+                                    ];
+                                    $selectedAmenities = (array) request('amenities', []);
+                                @endphp
+                                @foreach($amenities as $key => $label)
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" name="amenities[]" value="{{ $key }}"
+                                            {{ in_array($key, $selectedAmenities) ? 'checked' : '' }}
+                                            class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500">
+                                        <span class="text-sm text-gray-700">{{ $label }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        {{-- Per Page and Sort Hidden Inputs --}}
+                        <input type="hidden" name="per_page" value="{{ request('per_page', 12) }}">
+                        <input type="hidden" name="sort" value="{{ request('sort', 'relevance') }}">
 
                         {{-- Submit Button --}}
                         <button type="submit"
@@ -84,12 +211,116 @@
                 </div>
             </aside>
 
-            {{-- Main Content - Property Listings --}}
+            {{-- Main Content --}}
             <main class="flex-1">
                 {{-- Results Header --}}
                 <div class="flex items-center justify-between mb-6">
                     <span class="text-gray-600">{{ $properties->total() }} properties found</span>
+                    
+                    {{-- Per Page Selector --}}
+                    <div class="flex items-center gap-2">
+                        <label for="per_page" class="text-sm text-gray-600">Show:</label>
+                        <select 
+                            id="per_page" 
+                            class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            onchange="window.location.href = updateQueryStringParameter(window.location.href, 'per_page', this.value)"
+                        >
+                            <option value="12" {{ request('per_page', 12) == 12 ? 'selected' : '' }}>12</option>
+                            <option value="24" {{ request('per_page') == 24 ? 'selected' : '' }}>24</option>
+                            <option value="36" {{ request('per_page') == 36 ? 'selected' : '' }}>36</option>
+                            <option value="48" {{ request('per_page') == 48 ? 'selected' : '' }}>48</option>
+                        </select>
+                    </div>
                 </div>
+
+                {{-- Active Filters Display --}}
+                @if(request()->anyFilled(['q', 'type', 'category', 'min_price', 'max_price', 'bedrooms', 'bathrooms', 'amenities']))
+                    <div class="flex flex-wrap items-center gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
+                        <span class="text-sm text-gray-600">Active filters:</span>
+                        
+                        @if(request('q'))
+                            <span class="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                                <span>Search: "{{ request('q') }}"</span>
+                                <a href="{{ route('buyer.properties.buy', array_merge(request()->except(['q', 'page']), request()->query())) }}" 
+                                   class="hover:text-blue-900 ml-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </a>
+                            </span>
+                        @endif
+                        
+                        @if(request('type'))
+                            <span class="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                                <span>Type: {{ ucfirst(request('type')) }}</span>
+                                <a href="{{ route('buyer.properties.buy', request()->except(['type', 'page'])) }}" class="hover:text-blue-900">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </a>
+                            </span>
+                        @endif
+                        
+                        @if(request('category'))
+                            <span class="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                                <span>Category: {{ ucfirst(request('category')) }}</span>
+                                <a href="{{ route('buyer.properties.buy', request()->except(['category', 'page'])) }}" class="hover:text-blue-900">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </a>
+                            </span>
+                        @endif
+                        
+                        @if(request('min_price') || request('max_price'))
+                            <span class="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                                <span>Price: Rs {{ number_format(request('min_price', 0)) }} - Rs {{ number_format(request('max_price', 'Any')) }}</span>
+                                <a href="{{ route('buyer.properties.buy', request()->except(['min_price', 'max_price', 'page'])) }}" class="hover:text-blue-900">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </a>
+                            </span>
+                        @endif
+                        
+                        @if(request('bedrooms'))
+                            <span class="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                                <span>{{ request('bedrooms') }}+ Bedrooms</span>
+                                <a href="{{ route('buyer.properties.buy', request()->except(['bedrooms', 'page'])) }}" class="hover:text-blue-900">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </a>
+                            </span>
+                        @endif
+                        
+                        @if(request('bathrooms'))
+                            <span class="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                                <span>{{ request('bathrooms') }}+ Bathrooms</span>
+                                <a href="{{ route('buyer.properties.buy', request()->except(['bathrooms', 'page'])) }}" class="hover:text-blue-900">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </a>
+                            </span>
+                        @endif
+                        
+                        @if(request('amenities'))
+                            <span class="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                                <span>{{ count(request('amenities')) }} Amenities</span>
+                                <a href="{{ route('buyer.properties.buy', request()->except(['amenities', 'page'])) }}" class="hover:text-blue-900">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </a>
+                            </span>
+                        @endif
+                        
+                        <a href="{{ route('buyer.properties.buy') }}" class="text-sm text-red-600 hover:text-red-700 ml-auto">
+                            Clear all
+                        </a>
+                    </div>
+                @endif
 
                 {{-- Properties Grid --}}
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="properties-grid">
@@ -98,57 +329,41 @@
                             data-property-id="{{ $property->id }}">
                             {{-- Image Section --}}
                             <div class="relative h-52 bg-gray-200 overflow-hidden">
-                                @if($property->image ?? false)
-                                    <img src="{{ asset('images/' . $property->image) }}" alt="{{ $property->title }}"
-                                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
-                                @else
-                                    <div class="w-full h-full flex items-center justify-center bg-gray-100">
-                                        <svg class="w-16 h-16 text-gray-300" fill="none" stroke="currentColor"
-                                            viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                                                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                                        </svg>
-                                    </div>
-                                @endif
+                                <img src="{{ $property->image_url }}" alt="{{ $property->title }}"
+                                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
 
                                 {{-- Badges --}}
                                 <div class="absolute top-3 left-3 flex flex-col gap-2">
-                                    <span class="px-3 py-1 text-xs font-semibold rounded-full bg-green-600 text-white">
-                                        For Sale
-                                    </span>
+                                    <span class="px-3 py-1 text-xs font-semibold rounded-full bg-green-600 text-white">For Sale</span>
                                     @if($property->type)
                                         <span
-                                            class="px-3 py-1 text-xs font-medium bg-white/90 backdrop-blur-sm rounded-full text-gray-700 shadow-sm">
-                                            {{ ucfirst($property->type) }}
-                                        </span>
+                                            class="px-3 py-1 text-xs font-medium bg-white/90 backdrop-blur-sm rounded-full text-gray-700 shadow-sm">{{ $property->type_label }}</span>
+                                    @endif
+                                    @if($property->created_at->diffInDays(now()) < 7)
+                                        <span class="px-3 py-1 text-xs font-semibold rounded-full bg-red-600 text-white">New</span>
                                     @endif
                                 </div>
 
                                 {{-- Price Badge --}}
-                                <div
-                                    class="absolute top-3 right-3 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-md">
-                                    <span class="text-sm font-bold text-gray-900">Rs
-                                        {{ number_format($property->price) }}</span>
+                                <div class="absolute top-3 right-3 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-md">
+                                    <span class="text-sm font-bold text-gray-900">{{ $property->formatted_price }}</span>
                                 </div>
                             </div>
 
                             {{-- Content Section --}}
                             <div class="p-5">
-                                <h3
-                                    class="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition line-clamp-1">
+                                <h3 class="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition line-clamp-1">
                                     {{ $property->title }}
                                 </h3>
 
                                 <div class="flex items-center gap-1 text-gray-500 mt-2">
-                                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor"
-                                        viewBox="0 0 24 24">
+                                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                             d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                                     </svg>
                                     <span class="text-sm line-clamp-1">{{ $property->location }}</span>
                                 </div>
 
-                                {{-- Property Features --}}
                                 <div class="flex items-center gap-4 mt-4 text-gray-600">
                                     @if($property->bedrooms)
                                         <div class="flex items-center gap-1.5">
@@ -159,7 +374,6 @@
                                             <span class="text-sm">{{ $property->bedrooms }} Bed</span>
                                         </div>
                                     @endif
-
                                     @if($property->bathrooms)
                                         <div class="flex items-center gap-1.5">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -169,7 +383,6 @@
                                             <span class="text-sm">{{ $property->bathrooms }} Bath</span>
                                         </div>
                                     @endif
-
                                     @if($property->area)
                                         <div class="flex items-center gap-1.5">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -181,7 +394,22 @@
                                     @endif
                                 </div>
 
-                                {{-- CTA Button --}}
+                                {{-- Features Icons --}}
+                                @if($property->features)
+                                    <div class="flex flex-wrap gap-2 mt-3">
+                                        @foreach(array_slice($property->features, 0, 3) as $feature)
+                                            <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+                                                {{ $feature }}
+                                            </span>
+                                        @endforeach
+                                        @if(count($property->features) > 3)
+                                            <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+                                                +{{ count($property->features) - 3 }} more
+                                            </span>
+                                        @endif
+                                    </div>
+                                @endif
+
                                 <a href="{{ route('buyer.properties.show', $property->id) }}"
                                     class="mt-4 block w-full text-center py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 transition">
                                     View Details
@@ -189,7 +417,6 @@
                             </div>
                         </div>
                     @empty
-                        {{-- Empty State --}}
                         <div class="col-span-full bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
                             <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
                                 <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -210,10 +437,45 @@
                 {{-- Pagination --}}
                 @if($properties->hasPages())
                     <div class="mt-10">
-                        {{ $properties->links() }}
+                        {{ $properties->withQueryString()->links() }}
                     </div>
                 @endif
             </main>
         </div>
     </div>
+
+    <script>
+    function updateQueryStringParameter(uri, key, value) {
+        var re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
+        var separator = uri.indexOf('?') !== -1 ? "&" : "?";
+        if (uri.match(re)) {
+            return uri.replace(re, '$1' + key + "=" + value + '$2');
+        } else {
+            return uri + separator + key + "=" + value;
+        }
+    }
+
+    // Dynamic show/hide for bedrooms/bathrooms based on property type
+    document.addEventListener('DOMContentLoaded', function() {
+        const typeSelect = document.querySelector('select[name="type"]');
+        const bedroomsContainer = document.getElementById('bedrooms-container');
+        const bathroomsContainer = document.getElementById('bathrooms-container');
+        
+        function toggleBedroomBathroomFields() {
+            const selectedType = typeSelect.value;
+            const showFields = ['flat', 'house'].includes(selectedType) || selectedType === '';
+            
+            if (bedroomsContainer) {
+                bedroomsContainer.classList.toggle('hidden', !showFields);
+            }
+            if (bathroomsContainer) {
+                bathroomsContainer.classList.toggle('hidden', !showFields);
+            }
+        }
+        
+        if (typeSelect) {
+            typeSelect.addEventListener('change', toggleBedroomBathroomFields);
+        }
+    });
+    </script>
 </x-app-layout>
