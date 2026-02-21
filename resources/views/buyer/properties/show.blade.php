@@ -525,38 +525,55 @@
                             </li>
                         </ul>
                     </div>
+<!-- Recently Viewed - Solid List -->
+<div class="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+    <div class="flex items-center justify-between mb-4">
+        <h4 class="font-semibold text-gray-900">Recently Viewed</h4>
+    </div>
 
-                    <!-- Recently Viewed - Solid List -->
-                    <div class="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <h4 class="font-semibold text-gray-900">Recently Viewed</h4>
-                            <a href="#" class="text-sm text-blue-600 hover:text-blue-700">View All →</a>
-                        </div>
-                        
-                        <div class="space-y-3">
-                            @forelse($recentlyViewed ?? [] as $recent)
-                                <a href="#" class="flex items-center gap-3 hover:bg-gray-50 p-2 rounded-lg transition-colors">
-                                    <div class="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                                        <img src="{{ $recent->image_url ?? 'https://via.placeholder.com/48' }}" 
-                                             alt="" 
-                                             class="w-full h-full object-cover">
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <p class="text-sm font-medium text-gray-900 truncate">{{ $recent->title ?? 'Modern Apartment' }}</p>
-                                        <p class="text-xs text-gray-500 truncate">{{ $recent->location ?? 'DHA, Lahore' }}</p>
-                                        <p class="text-xs font-semibold text-blue-600 mt-0.5">Rs {{ number_format($recent->price ?? 5000000) }}</p>
-                                    </div>
-                                </a>
-                            @empty
-                                <div class="text-center py-6">
-                                    <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                    <p class="text-gray-400 text-sm">No recently viewed properties</p>
-                                </div>
-                            @endforelse
-                        </div>
-                    </div>
+    <div class="space-y-3">
+        @forelse($recentlyViewed as $recent)
+            <a href="{{ route('buyer.properties.show', $recent->id) }}"
+               class="flex items-center gap-3 hover:bg-gray-50 p-2 rounded-lg transition-colors">
+
+                <div class="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                    <img src="{{ $recent->image 
+                        ? asset('storage/'.$recent->image) 
+                        : 'https://via.placeholder.com/48' }}"
+                         alt="{{ $recent->title }}"
+                         class="w-full h-full object-cover">
+                </div>
+
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-gray-900 truncate">
+                        {{ $recent->title }}
+                    </p>
+
+                    <p class="text-xs text-gray-500 truncate">
+                        {{ $recent->location }}
+                    </p>
+
+                    <p class="text-xs font-semibold text-blue-600 mt-0.5">
+                        Rs {{ number_format($recent->price) }}
+                    </p>
+                </div>
+            </a>
+        @empty
+            <div class="text-center py-6">
+                <svg class="w-12 h-12 mx-auto text-gray-300 mb-3"
+                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          stroke-width="1.5"
+                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p class="text-gray-400 text-sm">
+                    No recently viewed properties
+                </p>
+            </div>
+        @endforelse
+    </div>
+</div>
+
                 </div>
             </div>
 

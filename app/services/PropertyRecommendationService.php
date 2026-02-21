@@ -12,12 +12,13 @@ class PropertyRecommendationService
 {
     private const WEIGHTS = [
         'price' => 25,
-        'type' => 15,
+        'type' => 10,
         'purpose' => 10,
-        'bedrooms' => 10,
+        'category' => 10,
+        'bedrooms' => 5,
         'bathrooms' => 5,
         'text' => 10,
-        'location' => 25,  // Increased from 5 to 25 - location should be primary factor
+        'location' => 25,
     ];
 
     private const TOLERANCE = [
@@ -27,108 +28,145 @@ class PropertyRecommendationService
     ];
 
     private const EARTH_RADIUS = 6371; // km
-    private const LOCATION_RADIUS = 50; // km, increased for Nepal context (Kathmandu Valley + surrounding areas)
+    private const LOCATION_RADIUS = 50; // km
 
-    // public function search(array $filters, int $perPage = 12): LengthAwarePaginator
-    // {
-    //     $query = Property::query()->approved();
-
-    //     $this->applyHardFilters($query, $filters);
-    //     $this->applyScoring($query, $filters);
-
-    //     return $query
-    //         ->orderByDesc('relevance_score')
-    //         ->paginate(min(max($perPage, 6), 48));
-    // }
+    /*
+    |--------------------------------------------------------------------------
+    | Main Search
+    |--------------------------------------------------------------------------
+    */
     public function search(array $filters, int $perPage = 6): LengthAwarePaginator
     {
-        $query = Property::query()->approved();
+        $query = Property::query()
+            ->approved()
+            ->with('seller'); // prevent N+1
 
-        $this->applyHardFilters($query, $filters);
+        $this->applyFilters($query, $filters);
         $this->applyScoring($query, $filters);
-
-        // Sorting logic
-        $sort = $filters['sort'] ?? null;
-
-        if ($sort === 'price_asc') {
-            $query->orderBy('price', 'asc');
-        } elseif ($sort === 'price_desc') {
-            $query->orderBy('price', 'desc');
-        } elseif ($sort === 'latest') {
-            $query->orderBy('created_at', 'desc');
-        } else {
-            // Default: AI relevance
-            $query->orderByDesc('relevance_score');
-        }
+        $this->applySorting($query, $filters);
 
         return $query
             ->paginate(min(max($perPage, 6), 48))
             ->withQueryString();
     }
 
-
+    /*
+    |--------------------------------------------------------------------------
+    | Personalized Recommendations
+    |--------------------------------------------------------------------------
+    */
     public function personalized(array $preferences, int $limit = 10): Collection
     {
-        $query = Property::query()->approved();
+        $query = Property::query()
+            ->approved()
+            ->with('seller');
 
+        $this->applyFilters($query, $preferences);
         $this->applyScoring($query, $preferences);
 
         return $query
             ->orderByDesc('relevance_score')
+            ->orderBy('price', 'asc')
             ->limit($limit)
             ->get();
     }
 
-    // Similar properties with radius + city filter
+    /*
+    |--------------------------------------------------------------------------
+    | Similar Properties
+    |--------------------------------------------------------------------------
+    */
     public function getSimilarProperties(Property $property, int $limit = 6): Collection
     {
-        // $city = trim(explode(',', $property->location)[1] ?? '');
-        return Property::query()
+        $query = Property::query()
             ->approved()
+            ->with('seller')
             ->where('id', '!=', $property->id)
             ->where('type', $property->type)
-            ->whereBetween('price', [$property->price * 0.8, $property->price * 1.2])
-            // ->when($city, fn($q) => $q->where('location', 'LIKE', "%{$city}%"))// ensures same city
-            ->whereNotNull(['latitude', 'longitude'])
-            ->selectRaw("*, (
+            ->whereBetween('price', [
+                $property->price * 0.8,
+                $property->price * 1.2
+            ]);
+
+        if ($property->latitude && $property->longitude) {
+            $this->applyBoundingBox($query, $property->latitude, $property->longitude);
+
+            $query->selectRaw("properties.*, (
                 ? * acos(
                     cos(radians(?)) * cos(radians(latitude)) *
                     cos(radians(longitude) - radians(?)) +
                     sin(radians(?)) * sin(radians(latitude))
                 )
-            ) AS distance", [self::EARTH_RADIUS, $property->latitude, $property->longitude, $property->latitude])
-            ->having('distance', '<=', self::LOCATION_RADIUS)
-            ->orderBy('distance')
-            ->limit($limit)
-            ->get();
+            ) AS distance", [
+                self::EARTH_RADIUS,
+                $property->latitude,
+                $property->longitude,
+                $property->latitude
+            ])
+                ->having('distance', '<=', self::LOCATION_RADIUS)
+                ->orderBy('distance');
+        }
+
+        return $query->limit($limit)->get();
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Radius Search
+    |--------------------------------------------------------------------------
+    */
     public function withinRadius(float $lat, float $lng, int $radius = 10): Collection
     {
-        return Property::query()
+        $query = Property::query()
             ->approved()
-            ->whereNotNull(['latitude', 'longitude'])
+            ->whereNotNull(['latitude', 'longitude']);
+
+        $this->applyBoundingBox($query, $lat, $lng, $radius);
+
+        return $query
             ->selectRaw("properties.*, (
                 ? * acos(
                     cos(radians(?)) * cos(radians(latitude)) *
                     cos(radians(longitude) - radians(?)) +
                     sin(radians(?)) * sin(radians(latitude))
                 )
-            ) AS distance", [self::EARTH_RADIUS, $lat, $lng, $lat])
+            ) AS distance", [
+                self::EARTH_RADIUS,
+                $lat,
+                $lng,
+                $lat
+            ])
             ->having('distance', '<=', $radius)
             ->orderBy('distance')
             ->get();
     }
 
-    private function applyHardFilters(Builder $query, array $data): void
+    /*
+    |--------------------------------------------------------------------------
+    | Filtering (Uses Model Scopes)
+    |--------------------------------------------------------------------------
+    */
+    private function applyFilters(Builder $query, array $data): void
     {
-        foreach (['purpose', 'type', 'category'] as $field) {
-            if (!empty($data[$field])) {
-                $query->where($field, $data[$field]);
-            }
+        $query
+            ->purpose($data['purpose'] ?? null)
+            ->type($data['type'] ?? null)
+            ->category($data['category'] ?? null)
+            ->priceRange($data['min_price'] ?? null, $data['max_price'] ?? null)
+            ->minBedrooms($data['bedrooms'] ?? null)
+            ->minBathrooms($data['bathrooms'] ?? null)
+            ->search($data['q'] ?? null);
+
+        if (!empty($data['lat']) && !empty($data['lng'])) {
+            $this->applyBoundingBox($query, $data['lat'], $data['lng']);
         }
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Scoring System
+    |--------------------------------------------------------------------------
+    */
     private function applyScoring(Builder $query, array $data): void
     {
         $parts = [];
@@ -137,69 +175,55 @@ class PropertyRecommendationService
         $this->priceScore($data, $parts, $bindings);
         $this->exactMatchScore('type', $data, self::WEIGHTS['type'], $parts, $bindings);
         $this->exactMatchScore('purpose', $data, self::WEIGHTS['purpose'], $parts, $bindings);
+        $this->exactMatchScore('category', $data, self::WEIGHTS['category'], $parts, $bindings);
         $this->rangeScore('bedrooms', $data, self::WEIGHTS['bedrooms'], self::TOLERANCE['bedrooms'], $parts, $bindings);
         $this->rangeScore('bathrooms', $data, self::WEIGHTS['bathrooms'], self::TOLERANCE['bathrooms'], $parts, $bindings);
-        $this->textScore($data, $parts, $bindings);
         $this->locationScore($data, $parts, $bindings);
 
-        // fallback if no scoring
         if (empty($parts)) {
             $query->selectRaw('properties.*, 0 AS relevance_score');
         } else {
-            $query->selectRaw('properties.*, (' . implode(' + ', $parts) . ') AS relevance_score', $bindings);
+            $query->selectRaw(
+                'properties.*, (' . implode(' + ', $parts) . ') AS relevance_score',
+                $bindings
+            );
         }
     }
 
-    // -------------------- SCORING --------------------
     private function priceScore(array $data, array &$parts, array &$bindings): void
     {
-        if (empty($data['min_price']) || empty($data['max_price']))
+        if (empty($data['min_price']) && empty($data['max_price']))
             return;
-        $target = ($data['min_price'] + $data['max_price']) / 2;
+
+        $min = $data['min_price'] ?? 0;
+        $max = $data['max_price'] ?? 999999999;
+        $target = ($min + $max) / 2;
         $tolerance = $target * self::TOLERANCE['price'];
-        $parts[] = "CASE WHEN ABS(price - ?) <= ? THEN ? WHEN ABS(price - ?) <= ? * 2 THEN ? * 0.5 ELSE 0 END";
-        array_push($bindings, $target, $tolerance, self::WEIGHTS['price'], $target, $tolerance, self::WEIGHTS['price']);
+
+        $parts[] = "
+            CASE
+                WHEN price BETWEEN ? AND ? THEN ?
+                WHEN price BETWEEN ? AND ? THEN ? * 0.5
+                ELSE 0
+            END
+        ";
+
+        array_push(
+            $bindings,
+            $min,
+            $max,
+            self::WEIGHTS['price'],
+            $min - $tolerance,
+            $max + $tolerance,
+            self::WEIGHTS['price']
+        );
     }
-
-    //using min and max price separately to allow more flexible scoring
-    // private function priceScore(array $data, array &$parts, array &$bindings): void
-    // {
-    //     if (empty($data['min_price']) || empty($data['max_price'])) {
-    //         return;
-    //     }
-
-    //     // Calculate tolerance separately for min and max
-    //     $minTolerance = $data['min_price'] * self::TOLERANCE['price'];
-    //     $maxTolerance = $data['max_price'] * self::TOLERANCE['price'];
-
-    //     $rangeMin = $data['min_price'] - $minTolerance;
-    //     $rangeMax = $data['max_price'] + $maxTolerance;
-
-    //     // Full points if inside the range, half points if slightly outside
-    //     $parts[] = "
-    //     CASE
-    //         WHEN price BETWEEN ? AND ? THEN ?
-    //         WHEN price BETWEEN ? AND ? THEN ? * 0.5
-    //         ELSE 0
-    //     END
-    // ";
-
-    //     array_push(
-    //         $bindings,
-    //         $rangeMin,
-    //         $rangeMax,
-    //         self::WEIGHTS['price'],           // full points
-    //         $rangeMin - $minTolerance,        // slightly below
-    //         $rangeMax + $maxTolerance,        // slightly above
-    //         self::WEIGHTS['price']            // half points
-    //     );
-    // }
-
 
     private function exactMatchScore(string $field, array $data, int $weight, array &$parts, array &$bindings): void
     {
         if (empty($data[$field]))
             return;
+
         $parts[] = "CASE WHEN {$field} = ? THEN ? ELSE 0 END";
         array_push($bindings, $data[$field], $weight);
     }
@@ -208,32 +232,24 @@ class PropertyRecommendationService
     {
         if (empty($data[$field]))
             return;
-        $parts[] = "CASE WHEN ABS({$field} - ?) <= ? THEN ? WHEN ABS({$field} - ?) <= ? * 2 THEN ? * 0.5 ELSE 0 END";
-        array_push($bindings, $data[$field], $tolerance, $weight, $data[$field], $tolerance, $weight);
-    }
 
-    private function textScore(array $data, array &$parts, array &$bindings): void
-    {
-        if (empty($data['q']))
-            return;
+        $parts[] = "
+            CASE 
+                WHEN ABS({$field} - ?) <= ? THEN ?
+                WHEN ABS({$field} - ?) <= ? * 2 THEN ? * 0.5
+                ELSE 0
+            END
+        ";
 
-        $search = strtolower(trim($data['q']));
-
-        // SIMPLE DIRECT SEARCH - No complex regional grouping
-        // This fixes the bug where searching "surkhet" didn't return Surkhet properties
-
-        $like = '%' . $search . '%';
-
-        // Scoring:
-        // - Match in location = highest (10 pts) - most important for location search
-        // - Match in title = medium (5 pts)
-        // - Match in description = lower (2 pts)
-
-        $parts[] = "CASE WHEN LOWER(location) LIKE ? THEN 10 ELSE 0 END";
-        $parts[] = "CASE WHEN LOWER(title) LIKE ? THEN 5 ELSE 0 END";
-        $parts[] = "CASE WHEN LOWER(description) LIKE ? THEN 2 ELSE 0 END";
-
-        array_push($bindings, $like, $like, $like);
+        array_push(
+            $bindings,
+            $data[$field],
+            $tolerance,
+            $weight,
+            $data[$field],
+            $tolerance,
+            $weight
+        );
     }
 
     private function locationScore(array $data, array &$parts, array &$bindings): void
@@ -241,21 +257,67 @@ class PropertyRecommendationService
         if (empty($data['lat']) || empty($data['lng']))
             return;
 
-        // Properties WITH coordinates get positive score based on distance
-        // Properties WITHOUT coordinates get NEGATIVE score (-50) to push them to bottom
-        $parts[] = "CASE WHEN latitude IS NOT NULL AND longitude IS NOT NULL THEN GREATEST(0, ? * (1 - (? * acos(cos(radians(?)) * cos(radians(latitude)) * cos(radians(longitude) - radians(?)) + sin(radians(?)) * sin(radians(latitude))) / ?))) ELSE -50 END";
+        $parts[] = "
+            GREATEST(0,
+                ? * (
+                    1 - (
+                        ? * acos(
+                            cos(radians(?)) * cos(radians(latitude)) *
+                            cos(radians(longitude) - radians(?)) +
+                            sin(radians(?)) * sin(radians(latitude))
+                        )
+                    ) / ?
+                )
+            )
+        ";
 
         array_push(
             $bindings,
-            self::WEIGHTS['location'],     // weight (25)
-            self::EARTH_RADIUS,            // Earth's radius (6371)
-            $data['lat'],                  // user's latitude
-            $data['lng'],                  // user's longitude
-            $data['lat'],                  // user's latitude again
-            self::LOCATION_RADIUS          // radius (50km)
+            self::WEIGHTS['location'],
+            self::EARTH_RADIUS,
+            $data['lat'],
+            $data['lng'],
+            $data['lat'],
+            self::LOCATION_RADIUS
         );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Sorting
+    |--------------------------------------------------------------------------
+    */
+    private function applySorting(Builder $query, array $filters): void
+    {
+        $sort = $filters['sort'] ?? null;
+
+        match ($sort) {
+            'price_asc' => $query->orderBy('price', 'asc'),
+            'price_desc' => $query->orderBy('price', 'desc'),
+            'latest' => $query->orderBy('created_at', 'desc'),
+            default => $query->orderByDesc('relevance_score')->orderBy('price', 'asc'),
+        };
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Bounding Box Optimization
+    |--------------------------------------------------------------------------
+    */
+    private function applyBoundingBox(Builder $query, float $lat, float $lng, int $radius = self::LOCATION_RADIUS): void
+    {
+        $latDelta = $radius / 111;
+        $lngDelta = $radius / (111 * cos(deg2rad($lat)));
+
+        $query->whereBetween('latitude', [$lat - $latDelta, $lat + $latDelta])
+            ->whereBetween('longitude', [$lng - $lngDelta, $lng + $lngDelta]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Stats (Cached)
+    |--------------------------------------------------------------------------
+    */
     public function stats(): array
     {
         return Cache::remember('property_stats', 3600, fn() => [

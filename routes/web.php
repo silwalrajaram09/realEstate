@@ -120,8 +120,11 @@ Route::middleware(['auth'])->group(function () {
 
         // Seller property CRUD using Seller\PropertyController
         Route::prefix('seller')->name('seller.')->group(function () {
+            Route::get('/seller/properties/rejected', [SellerPropertyController::class, 'rejected'])
+                ->name('properties.rejected');
             Route::resource('properties', SellerPropertyController::class);
         });
+
     });
 
     // Admin Routes

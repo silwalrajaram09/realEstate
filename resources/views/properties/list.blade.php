@@ -15,13 +15,28 @@
 
             <div class="flex items-center gap-4 mt-4 sm:mt-0">
                 {{-- Sort Dropdown --}}
-                <select
-                    class="text-sm border-0 bg-gray-50 rounded-lg px-4 py-2.5 text-gray-700 focus:ring-2 focus:ring-blue-500/20 cursor-pointer">
-                    <option>Most Recent</option>
-                    <option>Price: Low to High</option>
-                    <option>Price: High to Low</option>
-                    <option>Largest Area</option>
-                </select>
+                <form method="GET" action="{{ route('properties.list') }}">
+                    <select name="sort" onchange="this.form.submit()"
+                        class="text-sm border-0 bg-gray-50 rounded-lg px-4 py-2.5">
+
+                        <option value="latest" {{ request('sort') == 'latest' ? 'selected' : '' }}>
+                            Most Recent
+                        </option>
+
+                        <option value="price_asc" {{ request('sort') == 'price_asc' ? 'selected' : '' }}>
+                            Price: Low to High
+                        </option>
+
+                        <option value="price_desc" {{ request('sort') == 'price_desc' ? 'selected' : '' }}>
+                            Price: High to Low
+                        </option>
+
+                        <option value="oldest" {{ request('sort') == 'oldest' ? 'selected' : '' }}>
+                            Oldest First
+                        </option>
+
+                    </select>
+                </form>
 
                 {{-- Results Count --}}
                 <span
@@ -63,7 +78,7 @@
                                 {{-- Purpose Badge --}}
                                 <span
                                     class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium uppercase tracking-wider
-                                            {{ $property->purpose === 'sale' ? 'bg-emerald-500' : 'bg-blue-500' }} text-white shadow-lg backdrop-blur-sm bg-opacity-90">
+                                                                    {{ $property->purpose === 'sale' ? 'bg-emerald-500' : 'bg-blue-500' }} text-white shadow-lg backdrop-blur-sm bg-opacity-90">
                                     {{ $property->purpose === 'sale' ? 'For Sale' : 'For Rent' }}
                                 </span>
 
@@ -205,7 +220,7 @@
                 </p>
 
                 <div class="flex items-center justify-center gap-4">
-                    <a href="{{ route('properties.index') }}"
+                    <a href="{{ route('properties.list') }}"
                         class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

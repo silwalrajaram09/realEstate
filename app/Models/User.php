@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use App\Models\Favorite;
 
 class User extends Authenticatable
 {
@@ -18,7 +19,12 @@ class User extends Authenticatable
      * @var array<int, string>
      */
     protected $fillable = [
-       'name', 'email', 'password', 'phone', 'google_id', 'role'
+        'name',
+        'email',
+        'password',
+        'phone',
+        'google_id',
+        'role'
     ];
 
     /**
@@ -43,18 +49,29 @@ class User extends Authenticatable
 
 
     public function isBuyer()
-{
-    return $this->role === 'customer';
-}
+    {
+        return $this->role === 'customer';
+    }
 
-public function isSeller()
-{
-    return $this->role === 'owner';
-}
+    public function isSeller()
+    {
+        return $this->role === 'owner';
+    }
 
-public function isAdmin()
-{
-    return $this->role === 'admin';
-}
+    public function isAdmin()
+    {
+        return $this->role === 'admin';
+    }
+    // In app/Models/User.php - add this relationship
 
+    public function favorites()
+    {
+        return $this->hasMany(Favorite::class);
+    }
+
+    public function favoriteProperties()
+    {
+        return $this->belongsToMany(Property::class, 'favorites')
+            ->withTimestamps();
+    }
 }

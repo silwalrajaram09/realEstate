@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Models\User;
+use App\Models\PropertyView;
+use App\Models\Favorite;
 
 class Property extends Model
 {
@@ -54,6 +56,7 @@ class Property extends Model
         'ownership_type',
         'contact_number',
         'user_id',
+        'views_count',
     ];
 
     protected $casts = [
@@ -139,11 +142,27 @@ class Property extends Model
         return $query->when($category, fn($q) => $q->where('category', $category));
     }
 
-    public function scopePriceRange($query, $minPrice = null, $maxPrice = null)
+    // public function scopePriceRange($query, $minPrice = null, $maxPrice = null)
+    // {
+    //     return $query
+    //         ->when($minPrice, fn($q) => $q->where('price', '>=', $minPrice))
+    //         ->when($maxPrice, fn($q) => $q->where('price', '<=', $maxPrice));
+    // }
+    public function scopePriceRange($query, $min, $max)
     {
-        return $query
-            ->when($minPrice, fn($q) => $q->where('price', '>=', $minPrice))
-            ->when($maxPrice, fn($q) => $q->where('price', '<=', $maxPrice));
+        if (!$min && !$max)
+            return $query;
+
+        $min = $min ?? 0;
+        $max = $max ?? 999999999;
+
+        $target = ($min + $max) / 2;
+        $tolerance = $target * 0.20;
+
+        return $query->whereBetween('price', [
+            $min - $tolerance,
+            $max + $tolerance
+        ]);
     }
 
     public function scopeMinBedrooms($query, $bedrooms)
@@ -291,5 +310,25 @@ class Property extends Model
             $features[] = 'Loading Area';
 
         return $features;
+    }
+    public function views()
+    {
+        return $this->hasMany(PropertyView::class);
+    }
+    // In app/Models/Property.php - add this relationship
+
+    public function favoritedBy()
+    {
+        return $this->hasMany(Favorite::class);
+    }
+
+    public function favoritedByUsers()
+    {
+        return $this->belongsToMany(User::class, 'favorites')
+            ->withTimestamps();
+    }
+    public function incrementViews()
+    {
+        $this->increment('views_count');
     }
 }
