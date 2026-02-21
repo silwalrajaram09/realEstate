@@ -14,11 +14,22 @@ class PropertyController extends Controller
     public function list(Request $request, PropertySearchService $service)
     {
         // Get all filters from request
-        $filters = $request->only(['purpose', 'type', 'category', 'q']);
+        $filters = $request->only([
+            'purpose',
+            'type',
+            'category',
+            'q',
+            'min_price',
+            'max_price',
+            'bedrooms',
+            'bathrooms',
+            'sort',
+            'per_page'
+        ]);
 
         // Use service to get filtered properties
         $properties = $service->search($filters);
-
+        //$properties = Property::latest()->take(6)->get();
         return view('properties.list', compact('properties'));
     }
 

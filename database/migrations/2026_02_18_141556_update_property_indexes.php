@@ -11,9 +11,9 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::table('properties', function (Blueprint $table) {
-            $table->decimal('latitude', 10, 8)->nullable()->after('location');
-            $table->decimal('longitude', 11, 8)->nullable()->after('latitude');
-            $table->index(['latitude', 'longitude']);
+            $table->dropIndex('properties_purpose_type_index');
+            $table->index(['status', 'purpose', 'type', 'created_at']);
+            $table->index(['status', 'price']);
         });
     }
 
@@ -22,9 +22,6 @@ return new class extends Migration {
      */
     public function down(): void
     {
-        Schema::table('properties', function (Blueprint $table) {
-            $table->dropColumn(['latitude', 'longitude']);
-        });
+        //
     }
 };
-

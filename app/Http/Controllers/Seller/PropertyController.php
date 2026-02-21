@@ -20,8 +20,22 @@ class PropertyController extends Controller
      */
     public function index()
     {
-        $properties = Property::where('user_id', Auth::id())->latest()->get();
-        return view('seller.properties.index', compact('properties'));
+        $user = Auth::user();
+
+        // Get paginated properties
+        $properties = Property::where('user_id', $user->id)
+            ->latest()
+            ->paginate(10);
+
+        // ✅ FIX: Add stats for the summary cards
+        $stats = [
+            'total' => Property::where('user_id', $user->id)->count(),
+            'approved' => Property::where('user_id', $user->id)->where('status', 'approved')->count(),
+            'pending' => Property::where('user_id', $user->id)->where('status', 'pending')->count(),
+            'rejected' => Property::where('user_id', $user->id)->where('status', 'rejected')->count(),
+        ];
+
+        return view('seller.properties.index', compact('properties', 'stats'));
     }
 
     /**
@@ -286,6 +300,29 @@ class PropertyController extends Controller
         return redirect()
             ->route('seller.properties.index')
             ->with('success', 'Property deleted successfully!');
+    }
+    //rejected properties
+    /**
+     * Display rejected properties.
+     */
+    public function rejected()
+    {
+        $user = Auth::user();
+
+        $properties = Property::where('user_id', $user->id)
+            ->where('status', 'rejected')
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+
+        // Get stats for the summary cards
+        $stats = [
+            'total' => Property::where('user_id', $user->id)->count(),
+            'approved' => Property::where('user_id', $user->id)->where('status', 'approved')->count(),
+            'pending' => Property::where('user_id', $user->id)->where('status', 'pending')->count(),
+            'rejected' => Property::where('user_id', $user->id)->where('status', 'rejected')->count(),
+        ];
+
+        return view('seller.properties.index', compact('properties', 'stats'));
     }
 }
 

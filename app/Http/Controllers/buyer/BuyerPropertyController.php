@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Models\Property;
+use App\Models\PropertyView;
+use Illuminate\Support\Facades\Auth;
 use App\Services\PropertySearchService;
 use App\Services\PropertyRecommendationService;
 
@@ -109,7 +111,7 @@ class BuyerPropertyController extends Controller
     }
 
     /**
-     * Property detail with similar properties.
+     * Property detail with similar properties and recently viewed.
      */
     public function show(Property $property)
     {
@@ -118,10 +120,54 @@ class BuyerPropertyController extends Controller
             abort(404, 'Property not found or not available.');
         }
 
-        // Get similar properties based on type and price range
+        // Increment views_count (requires views_count column in properties table)
+        $property->incrementViews();
+
+        // Track view in DB for logged-in users
+        if ($user = Auth::user()) {
+            PropertyView::updateOrCreate(
+                ['user_id' => $user->id, 'property_id' => $property->id],
+                ['created_at' => now()] // updates timestamp if already exists
+            );
+        } else {
+            // Track for guests in session
+            $recentlyViewed = session()->get('recently_viewed', []);
+            $recentlyViewed = array_filter($recentlyViewed, fn($id) => $id != $property->id);
+            array_unshift($recentlyViewed, $property->id);
+            $recentlyViewed = array_slice($recentlyViewed, 0, 10);
+            session()->put('recently_viewed', $recentlyViewed);
+        }
+
+        // Load recently viewed properties
+        if ($user) {
+            $recentlyViewedProperties = Property::join('property_views', 'properties.id', '=', 'property_views.property_id')
+                ->where('property_views.user_id', $user->id)
+                ->where('properties.id', '!=', $property->id)
+                ->where('properties.status', 'approved')
+                ->orderBy('property_views.created_at', 'desc')
+                ->select('properties.*')
+                ->distinct()
+                ->take(10)
+                ->get();
+        } else {
+            $recentlyViewed = session()->get('recently_viewed', []);
+            $recentlyViewedProperties = Property::whereIn('id', $recentlyViewed)
+                ->approved()
+                ->where('id', '!=', $property->id)
+                ->get()
+                ->sortBy(function ($prop) use ($recentlyViewed) {
+                    return array_search($prop->id, $recentlyViewed);
+                });
+        }
+
+        // Get similar recommendations
         $recommendations = $this->recommendationService->getSimilarProperties($property);
 
-        return view('buyer.properties.show', compact('property', 'recommendations'));
+        return view('buyer.properties.show', [
+            'property' => $property,
+            'recommendations' => $recommendations,
+            'recentlyViewed' => $recentlyViewedProperties,
+        ]);
     }
 
     /**
@@ -177,4 +223,3 @@ class BuyerPropertyController extends Controller
         return response()->json($this->recommendationService->stats());
     }
 }
-

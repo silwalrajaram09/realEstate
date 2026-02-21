@@ -46,29 +46,29 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span class="px-3 py-1 text-xs font-semibold rounded-full
-                                                        @if($user->role === 'admin') bg-purple-100 text-purple-700
-                                                        @elseif($user->role === 'owner') bg-blue-100 text-blue-700
-                                                        @else bg-gray-100 text-gray-700 @endif">
+                                                                @if($user->role === 'admin') bg-purple-100 text-purple-700
+                                                                @elseif($user->role === 'owner') bg-blue-100 text-blue-700
+                                                                @else bg-gray-100 text-gray-700 @endif">
                                         {{ ucfirst($user->role) }}
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     {{ $user->created_at->format('M d, Y') }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    @if($user->role !== 'admin')
-                                        <form action="{{ route('admin.users.make-admin', $user) }}" method="POST" class="inline">
-                                            @csrf
-                                            @method('PATCH')
-                                            <button type="submit" class="text-purple-600 hover:text-purple-900"
-                                                onclick="return confirm('Make this user an admin?')">
-                                                Make Admin
-                                            </button>
-                                        </form>
-                                    @else
-                                        <span class="text-gray-400">Admin</span>
-                                    @endif
-                                </td>
+                                <!-- <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            @if($user->role !== 'admin')
+                                                <form action="{{ route('admin.users.make-admin', $user) }}" method="POST" class="inline">
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <button type="submit" class="text-purple-600 hover:text-purple-900"
+                                                        onclick="return confirm('Make this user an admin?')">
+                                                        Make Admin
+                                                    </button>
+                                                </form>
+                                            @else
+                                                <span class="text-gray-400">Admin</span>
+                                            @endif
+                                        </td> -->
                             </tr>
                         @empty
                             <tr>
