@@ -5,15 +5,7 @@ use App\Http\Controllers\Admin\AdminAuthController;
 use App\Http\Controllers\AdminDashboardController;
 use Illuminate\Support\Facades\Route;
 
-/*
-|--------------------------------------------------------------------------
-| Admin Routes
-|--------------------------------------------------------------------------
-*/
 
-// =====================
-// Admin Auth (Guest)
-// =====================
 Route::prefix('admin')->name('admin.')->middleware('guest:admin')->group(function () {
 
     // SHOW LOGIN PAGE (GET)
@@ -26,9 +18,7 @@ Route::prefix('admin')->name('admin.')->middleware('guest:admin')->group(functio
 });
 
 
-// =====================
-// Admin Protected
-// =====================
+
 Route::prefix('admin')->name('admin.')->middleware('admin.auth')->group(function () {
 
     Route::get('/dashboard', [AdminDashboardController::class, 'index'])

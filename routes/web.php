@@ -11,11 +11,7 @@ use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\buyer\BuyerPropertyController as BuyerPropertyController;
 use App\Http\Controllers\Seller\PropertyController as SellerPropertyController;
 
-/*
-|--------------------------------------------------------------------------
-| Landing Page (Guests only)
-|--------------------------------------------------------------------------
-*/
+
 
 // Route::get('/', function () {
 //     return auth()->check()
@@ -43,19 +39,11 @@ Route::get('/properties', [PropertyController::class, 'list'])->name('properties
 Route::get('/properties/{property}', [PropertyController::class, 'show'])->name('properties.show');
 
 
-/*
-|--------------------------------------------------------------------------
-| Authenticated Routes
-|--------------------------------------------------------------------------
-*/
+
 
 Route::middleware(['auth'])->group(function () {
 
-    /*
-    |--------------------------------------------------------------------------
-    | Profile Management
-    |--------------------------------------------------------------------------
-    */
+
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/', [ProfileController::class, 'edit'])->name('edit');
         Route::put('/', [ProfileController::class, 'update'])->name('update');
@@ -154,10 +142,6 @@ Route::get('/dashboard', function () {
     };
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-/*
-|--------------------------------------------------------------------------
-| Auth Routes (Laravel Breeze)
-|--------------------------------------------------------------------------
-*/
+
 
 require __DIR__ . '/auth.php';

@@ -258,7 +258,7 @@
         @endif
 
         {{-- RECOMMENDATIONS --}}
-        @if($recommendations->count())
+        <!-- @if($recommendations->count())
             <div class="mt-16">
                 <div class="flex items-center justify-between mb-8">
                     <h2 class="text-2xl font-bold text-gray-900">Similar Properties</h2>
@@ -307,7 +307,7 @@
                     @endforeach
                 </div>
             </div>
-        @endif
+        @endif -->
 
     </div>
 
