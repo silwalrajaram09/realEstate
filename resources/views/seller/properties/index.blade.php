@@ -1,155 +1,229 @@
 <x-app-layout>
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=DM+Sans:wght@300;400;500;600&display=swap');
 
-            <!-- Header with Action Buttons -->
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <h1 class="text-2xl font-bold text-gray-900">My Properties</h1>
+        .idx-root { font-family: 'DM Sans', sans-serif; background: var(--mist, #f4f0e8); min-height: 100%; }
 
-                <div class="flex items-center gap-3">
-                    <!-- Rejected Properties Button (NEW) -->
-                    <a href="{{ route('seller.properties.rejected') }}"
-                        class="bg-red-100 text-red-700 px-4 py-2 rounded-lg font-medium hover:bg-red-200 transition flex items-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                        Rejected Properties
-                    </a>
+        /* ── Page header ── */
+        .idx-page-header {
+            background: var(--cream, #faf7f2);
+            border-bottom: 1px solid #ede8df;
+            padding: 2rem 0 1.75rem;
+        }
+        .idx-eyebrow { display: flex; align-items: center; gap: 0.625rem; margin-bottom: 0.4rem; }
+        .idx-eyebrow-line { width: 1.5rem; height: 1px; background: #b5813a; }
+        .idx-eyebrow-text { font-size: 0.65rem; letter-spacing: 0.14em; text-transform: uppercase; color: #b5813a; font-weight: 600; }
+        .idx-page-title { font-family: 'Playfair Display', serif; font-size: clamp(1.5rem, 3vw, 2.1rem); font-weight: 600; color: #1a1a2e; line-height: 1.1; }
 
-                    <!-- Add Property Button -->
-                    <a href="{{ route('seller.properties.create') }}"
-                        class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition flex items-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                        </svg>
-                        Add Property
-                    </a>
+        /* ── Buttons ── */
+        .btn-gold {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            padding: 0.55rem 1.25rem;
+            background: #b5813a; color: #fff;
+            border-radius: 0.5rem; font-size: 0.8125rem; font-weight: 600;
+            letter-spacing: 0.04em; text-transform: uppercase; text-decoration: none;
+            transition: background 0.2s ease, box-shadow 0.2s ease;
+        }
+        .btn-gold:hover { background: #9a6e2f; box-shadow: 0 4px 14px rgba(181,129,58,0.3); }
+
+        .btn-ghost-red {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            padding: 0.55rem 1.1rem;
+            background: #fef2f2; color: #dc2626;
+            border: 1px solid #fecaca;
+            border-radius: 0.5rem; font-size: 0.8125rem; font-weight: 600;
+            letter-spacing: 0.04em; text-transform: uppercase; text-decoration: none;
+            transition: background 0.2s ease;
+        }
+        .btn-ghost-red:hover { background: #fee2e2; }
+
+        /* ── Status filter tabs ── */
+        .filter-tab {
+            padding: 0.4rem 1rem;
+            border-radius: 2rem;
+            font-size: 0.78rem;
+            font-weight: 500;
+            text-decoration: none;
+            border: 1px solid transparent;
+            transition: all 0.15s ease;
+            color: #8c8070;
+            background: var(--cream, #faf7f2);
+            border-color: #ede8df;
+        }
+        .filter-tab:hover { color: #b5813a; border-color: #d4a85e; }
+        .filter-tab.active { background: #b5813a; color: #fff; border-color: #b5813a; }
+
+        /* ── Panel ── */
+        .panel { background: var(--cream, #faf7f2); border: 1px solid #ede8df; border-radius: 0.75rem; overflow: hidden; }
+        .panel-footer { padding: 1rem 1.5rem; border-top: 1px solid #ede8df; }
+
+        /* ── Table ── */
+        .re-table { width: 100%; border-collapse: collapse; }
+        .re-table thead th {
+            padding: 0.75rem 1.5rem;
+            text-align: left;
+            font-size: 0.65rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+            color: #8c8070; background: #f4f0e8;
+            border-bottom: 1px solid #ede8df;
+        }
+        .re-table thead th:last-child { text-align: right; }
+        .re-table tbody tr { border-bottom: 1px solid #ede8df; transition: background 0.15s ease; }
+        .re-table tbody tr:last-child { border-bottom: none; }
+        .re-table tbody tr:hover { background: rgba(181,129,58,0.04); }
+        .re-table td { padding: 1rem 1.5rem; font-size: 0.875rem; color: #1a1a2e; vertical-align: middle; }
+        .re-table td:last-child { text-align: right; }
+
+        .prop-thumb { width: 3rem; height: 3rem; border-radius: 0.5rem; background: #ede8df; overflow: hidden; flex-shrink: 0; }
+        .prop-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .prop-thumb-empty { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #8c8070; }
+        .prop-name { font-weight: 500; color: #1a1a2e; }
+        .prop-loc  { font-size: 0.78rem; color: #8c8070; margin-top: 0.15rem; }
+        .prop-price { font-weight: 600; }
+
+        /* ── Badges ── */
+        .badge { display: inline-block; padding: 0.2rem 0.65rem; border-radius: 2rem; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.04em; }
+        .badge-approved { background: #ecfdf5; color: #059669; }
+        .badge-pending  { background: #fffbeb; color: #d97706; }
+        .badge-rejected { background: #fef2f2; color: #dc2626; }
+
+        /* ── Action links ── */
+        .act-link { font-size: 0.78rem; font-weight: 500; text-decoration: none; color: #b5813a; transition: color 0.15s; }
+        .act-link:hover { color: #9a6e2f; }
+        .act-link-muted { color: #8c8070; }
+        .act-link-muted:hover { color: #1a1a2e; }
+        .act-link-danger { color: #dc2626; }
+        .act-link-danger:hover { color: #b91c1c; }
+
+        /* ── Stat mini cards ── */
+        .mini-stat { background: var(--cream, #faf7f2); border: 1px solid #ede8df; border-radius: 0.75rem; padding: 1.1rem 1.25rem; }
+        .mini-stat-label { font-size: 0.72rem; color: #8c8070; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
+        .mini-stat-value { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 600; margin-top: 0.2rem; }
+
+        /* ── Empty state ── */
+        .empty-cell { padding: 3.5rem 1.5rem; text-align: center; color: #8c8070; }
+    </style>
+
+    <div class="idx-root">
+
+        {{-- Page header --}}
+        <div class="idx-page-header">
+            <div class="max-w-7xl mx-auto px-5 sm:px-8 lg:px-10">
+                <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+                    <div>
+                        <div class="idx-eyebrow">
+                            <span class="idx-eyebrow-line"></span>
+                            <span class="idx-eyebrow-text">Seller Portal</span>
+                        </div>
+                        <h1 class="idx-page-title">My Listings</h1>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <a href="{{ route('seller.properties.rejected') }}" class="btn-ghost-red">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                            Rejected
+                        </a>
+                        <a href="{{ route('seller.properties.create') }}" class="btn-gold">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            Add Property
+                        </a>
+                    </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Status Filter Tabs (Optional Enhancement) -->
+        <div class="max-w-7xl mx-auto px-5 sm:px-8 lg:px-10 py-8">
+
+            {{-- Filter tabs --}}
             <div class="flex gap-2 mb-6">
                 <a href="{{ route('seller.properties.index') }}"
-                    class="px-4 py-2 rounded-lg text-sm font-medium {{ !request('status') ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
+                   class="filter-tab {{ !request('status') ? 'active' : '' }}">
                     All Properties
                 </a>
-                <!-- <a href="{{ route('seller.properties.index', ['status' => 'approved']) }}"
-                    class="px-4 py-2 rounded-lg text-sm font-medium {{ request('status') == 'approved' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
-                    Approved
-                </a>
-                <a href="{{ route('seller.properties.index', ['status' => 'pending']) }}"
-                    class="px-4 py-2 rounded-lg text-sm font-medium {{ request('status') == 'pending' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
-                    Pending
-                </a>
-                <a href="{{ route('seller.properties.rejected') }}"
-                    class="px-4 py-2 rounded-lg text-sm font-medium {{ request('status') == 'rejected' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
-                    Rejected
-                </a> -->
             </div>
 
-            <!-- Properties Table -->
-            <div class="bg-white overflow-hidden shadow-sm rounded-lg">
+            {{-- Table --}}
+            <div class="panel reveal">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
+                    <table class="re-table">
+                        <thead>
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Property
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Listed</th>
-                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions
-                                </th>
+                                <th>Property</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                                <th>Listed</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
+                        <tbody>
                             @forelse($properties as $property)
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-6 py-4">
-                                        <div class="flex items-center">
-                                            <div class="h-12 w-12 rounded-lg bg-gray-200 overflow-hidden flex-shrink-0">
+                                <tr>
+                                    <td>
+                                        <div style="display:flex;align-items:center;gap:0.875rem">
+                                            <div class="prop-thumb">
                                                 @if($property->image)
-                                                    <img src="{{ asset('images/' . $property->image) }}"
-                                                        class="h-full w-full object-cover">
+                                                    <img src="{{ asset('images/' . $property->image) }}" alt="">
                                                 @else
-                                                    <div class="h-full w-full flex items-center justify-center">
-                                                        <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor"
-                                                            viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                                stroke-width="2"
-                                                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                    <div class="prop-thumb-empty">
+                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                                                         </svg>
                                                     </div>
                                                 @endif
                                             </div>
-                                            <div class="ml-4">
-                                                <div class="text-sm font-medium text-gray-900">{{ $property->title }}</div>
-                                                <div class="text-sm text-gray-500">{{ $property->location }}</div>
+                                            <div>
+                                                <div class="prop-name">{{ $property->title }}</div>
+                                                <div class="prop-loc">{{ $property->location }}</div>
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="px-6 py-4 text-sm font-medium text-gray-900">Rs
-                                        {{ number_format($property->price) }}
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        <span class="px-2 py-1 text-xs font-semibold rounded-full 
-                                                                    @if($property->status === 'approved') bg-green-100 text-green-800 
-                                                                    @elseif($property->status === 'pending') bg-yellow-100 text-yellow-800 
-                                                                    @else bg-red-100 text-red-800 @endif">
+
+                                    <td class="prop-price">Rs {{ number_format($property->price) }}</td>
+
+                                    <td>
+                                        <span class="badge
+                                            @if($property->status === 'approved') badge-approved
+                                            @elseif($property->status === 'pending') badge-pending
+                                            @else badge-rejected @endif">
                                             {{ ucfirst($property->status) }}
                                         </span>
                                         @if($property->status === 'rejected' && $property->rejection_reason)
-                                            <span class="ml-2 text-xs text-gray-500 cursor-help"
-                                                title="{{ $property->rejection_reason }}">
-                                                ⓘ
-                                            </span>
+                                            <span style="margin-left:0.4rem;font-size:0.75rem;color:#8c8070;cursor:help"
+                                                  title="{{ $property->rejection_reason }}">ⓘ</span>
                                         @endif
                                     </td>
-                                    <td class="px-6 py-4 text-sm text-gray-500">
-                                        {{ $property->created_at->format('M d, Y') }}
-                                    </td>
-                                    <td class="px-6 py-4 text-right text-sm font-medium">
-                                        <a href="{{ route('seller.properties.show', $property->id) }}"
-                                            class="text-blue-600 hover:text-blue-900 mr-3">View</a>
 
-                                        @if($property->status !== 'rejected')
-                                            <a href="{{ route('seller.properties.edit', $property->id) }}"
-                                                class="text-gray-600 hover:text-gray-900 mr-3">Edit</a>
-                                        @endif
+                                    <td style="color:#8c8070">{{ $property->created_at->format('M d, Y') }}</td>
 
-                                        <form action="{{ route('seller.properties.destroy', $property->id) }}" method="POST"
-                                            class="inline">
-                                            @csrf @method('DELETE')
-                                            <button type="submit" class="text-red-600 hover:text-red-900"
-                                                onclick="return confirm('Are you sure you want to delete this property? This action cannot be undone.')">
-                                                Delete
-                                            </button>
-                                        </form>
+                                    <td>
+                                        <div style="display:flex;align-items:center;justify-content:flex-end;gap:1rem">
+                                            <a href="{{ route('seller.properties.show', $property->id) }}" class="act-link">View</a>
+
+                                            @if($property->status !== 'rejected')
+                                                <a href="{{ route('seller.properties.edit', $property->id) }}" class="act-link act-link-muted">Edit</a>
+                                            @endif
+
+                                            <form action="{{ route('seller.properties.destroy', $property->id) }}" method="POST" style="display:inline">
+                                                @csrf @method('DELETE')
+                                                <button type="submit" class="act-link act-link-danger" style="background:none;border:none;cursor:pointer;padding:0"
+                                                    onclick="return confirm('Are you sure you want to delete this property? This action cannot be undone.')">
+                                                    Delete
+                                                </button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="px-6 py-12 text-center">
-                                        @if(request('status') == 'rejected')
-                                            <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor"
-                                                viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M6 18L18 6M6 6l12 12" />
-                                            </svg>
-                                            <p class="text-gray-500 mb-2">No rejected properties found.</p>
-                                            <p class="text-sm text-gray-400 mb-4">Properties you submit will appear here if
-                                                rejected by admin.</p>
-                                            <a href="{{ route('seller.properties.create') }}"
-                                                class="text-blue-600 hover:text-blue-700 font-medium">
-                                                + Add New Property
-                                            </a>
-                                        @else
-                                            <p class="text-gray-500 mb-4">No properties Rejected yet.</p>
-                                            <a href="{{ route('seller.properties.create') }}"
-                                                class="text-blue-600 hover:text-blue-700 font-medium">+ Add Your First
-                                                Property</a>
-                                        @endif
+                                    <td colspan="5" class="empty-cell">
+                                        <svg class="w-12 h-12 mx-auto mb-3" style="color:#ede8df" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16"/>
+                                        </svg>
+                                        <p style="margin-bottom:0.5rem">No properties listed yet.</p>
+                                        <a href="{{ route('seller.properties.create') }}" class="act-link" style="font-size:0.875rem">+ Add Your First Property</a>
                                     </td>
                                 </tr>
                             @endforelse
@@ -158,29 +232,27 @@
                 </div>
 
                 @if(method_exists($properties, 'hasPages') && $properties->hasPages())
-                    <div class="px-6 py-4 border-t border-gray-200">
-                        {{ $properties->links() }}
-                    </div>
+                    <div class="panel-footer">{{ $properties->links() }}</div>
                 @endif
             </div>
 
-            <!-- Quick Stats Summary (Optional) -->
-            <div class="mt-6 grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-                    <p class="text-sm text-gray-500">Total Properties</p>
-                    <p class="text-xl font-bold text-gray-900">{{ $stats['total'] ?? 0 }}</p>
+            {{-- Mini stats --}}
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 reveal reveal-delay-1">
+                <div class="mini-stat">
+                    <p class="mini-stat-label">Total</p>
+                    <p class="mini-stat-value" style="color:#1a1a2e">{{ $stats['total'] ?? 0 }}</p>
                 </div>
-                <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-                    <p class="text-sm text-gray-500">Approved</p>
-                    <p class="text-xl font-bold text-green-600">{{ $stats['approved'] ?? 0 }}</p>
+                <div class="mini-stat">
+                    <p class="mini-stat-label">Approved</p>
+                    <p class="mini-stat-value" style="color:#059669">{{ $stats['approved'] ?? 0 }}</p>
                 </div>
-                <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-                    <p class="text-sm text-gray-500">Pending</p>
-                    <p class="text-xl font-bold text-yellow-600">{{ $stats['pending'] ?? 0 }}</p>
+                <div class="mini-stat">
+                    <p class="mini-stat-label">Pending</p>
+                    <p class="mini-stat-value" style="color:#d97706">{{ $stats['pending'] ?? 0 }}</p>
                 </div>
-                <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-                    <p class="text-sm text-gray-500">Rejected</p>
-                    <p class="text-xl font-bold text-red-600">{{ $stats['rejected'] ?? 0 }}</p>
+                <div class="mini-stat">
+                    <p class="mini-stat-label">Rejected</p>
+                    <p class="mini-stat-value" style="color:#dc2626">{{ $stats['rejected'] ?? 0 }}</p>
                 </div>
             </div>
 
