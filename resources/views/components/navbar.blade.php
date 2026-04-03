@@ -273,7 +273,7 @@
 
             {{-- ── BRAND ── --}}
             <div class="flex items-center gap-6 lg:gap-10">
-                <a href="{{ route('dashboard') }}" class="nav-brand">
+                <a href="/" class="nav-brand">
                     Real<span>Estate</span>
                 </a>
 
