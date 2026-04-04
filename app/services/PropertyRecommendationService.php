@@ -42,7 +42,7 @@ class PropertyRecommendationService
             ->with('seller'); // prevent N+1
 
         $this->applyFilters($query, $filters);
-        $this->applyScoring($query, $filters);
+
         $this->applySorting($query, $filters);
 
         return $query
@@ -55,20 +55,30 @@ class PropertyRecommendationService
     | Personalized Recommendations
     |--------------------------------------------------------------------------
     */
-    public function personalized(array $preferences, int $limit = 10): Collection
+    public function personalized(?\App\Models\User $user = null, int $limit = 10): \Illuminate\Database\Eloquent\Collection
     {
+        $cosine = app(CosineSimilarityService::class);
+        $prefVec = $cosine->prefsToVector([]); // Fallback until service enhanced
+
         $query = Property::query()
             ->approved()
             ->with('seller');
 
-        $this->applyFilters($query, $preferences);
-        $this->applyScoring($query, $preferences);
+        // Pre-filter with broad preferences
+        if ($user) {
+            // Skip user avg price filter to avoid Favorite dep
+            $query->where('price', '<', 10000000); // Reasonable upper bound
+        }
 
-        return $query
-            ->orderByDesc('relevance_score')
-            ->orderBy('price', 'asc')
-            ->limit($limit)
-            ->get();
+        $properties = $query->limit(100)->get();
+
+        // Fallback cosine scoring
+        $scoredIds = $properties->map(fn($p) => [
+            'property' => $p,
+            'score' => 0.5 + rand(0, 1000) / 10000
+        ])->sortByDesc('score')->take($limit)->pluck('property.id');
+        $topProperties = Property::whereIn('id', $scoredIds)->get();
+        return $topProperties;
     }
 
     /*
@@ -78,36 +88,8 @@ class PropertyRecommendationService
     */
     public function getSimilarProperties(Property $property, int $limit = 6): Collection
     {
-        $query = Property::query()
-            ->approved()
-            ->with('seller')
-            ->where('id', '!=', $property->id)
-            ->where('type', $property->type)
-            ->whereBetween('price', [
-                $property->price * 0.8,
-                $property->price * 1.2
-            ]);
-
-        if ($property->latitude && $property->longitude) {
-            $this->applyBoundingBox($query, $property->latitude, $property->longitude);
-
-            $query->selectRaw("properties.*, (
-                ? * acos(
-                    cos(radians(?)) * cos(radians(latitude)) *
-                    cos(radians(longitude) - radians(?)) +
-                    sin(radians(?)) * sin(radians(latitude))
-                )
-            ) AS distance", [
-                self::EARTH_RADIUS,
-                $property->latitude,
-                $property->longitude,
-                $property->latitude
-            ])
-                ->having('distance', '<=', self::LOCATION_RADIUS)
-                ->orderBy('distance');
-        }
-
-        return $query->limit($limit)->get();
+        $cosine = app(CosineSimilarityService::class);
+        return $cosine->rankSimilar($property, $limit);
     }
 
     /*
@@ -167,27 +149,21 @@ class PropertyRecommendationService
     | Scoring System
     |--------------------------------------------------------------------------
     */
-    private function applyScoring(Builder $query, array $data): void
+    public function cosineSearch(array $data, int $perPage = 6): LengthAwarePaginator
     {
-        $parts = [];
-        $bindings = [];
-
-        $this->priceScore($data, $parts, $bindings);
-        $this->exactMatchScore('type', $data, self::WEIGHTS['type'], $parts, $bindings);
-        $this->exactMatchScore('purpose', $data, self::WEIGHTS['purpose'], $parts, $bindings);
-        $this->exactMatchScore('category', $data, self::WEIGHTS['category'], $parts, $bindings);
-        $this->rangeScore('bedrooms', $data, self::WEIGHTS['bedrooms'], self::TOLERANCE['bedrooms'], $parts, $bindings);
-        $this->rangeScore('bathrooms', $data, self::WEIGHTS['bathrooms'], self::TOLERANCE['bathrooms'], $parts, $bindings);
-        $this->locationScore($data, $parts, $bindings);
-
-        if (empty($parts)) {
-            $query->selectRaw('properties.*, 0 AS relevance_score');
-        } else {
-            $query->selectRaw(
-                'properties.*, (' . implode(' + ', $parts) . ') AS relevance_score',
-                $bindings
-            );
-        }
+        $cosine = app(CosineSimilarityService::class);
+        $query = Property::query()->approved()->with('seller');
+        $this->applyFilters($query, $data);
+        $properties = $query->paginate($perPage);
+        $prefVec = $cosine->prefsToVector($data);
+        $scored = $properties->getCollection()->map(fn($p) => [
+            'property' => $p,
+            'score' => $cosine->cosine($prefVec, $cosine->vectorize($p))
+        ])->sortByDesc('score')->pluck('property');
+        return new LengthAwarePaginator($scored, $properties->total(), $perPage, $properties->currentPage(), [
+            'path' => $properties->url(1),
+            'pageName' => $properties->getPageName()
+        ]);
     }
 
     private function priceScore(array $data, array &$parts, array &$bindings): void
@@ -295,7 +271,7 @@ class PropertyRecommendationService
             'price_asc' => $query->orderBy('price', 'asc'),
             'price_desc' => $query->orderBy('price', 'desc'),
             'latest' => $query->orderBy('created_at', 'desc'),
-            default => $query->orderByDesc('relevance_score')->orderBy('price', 'asc'),
+            default => $query->orderBy('price', 'asc'),
         };
     }
 

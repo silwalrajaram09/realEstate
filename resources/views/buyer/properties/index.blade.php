@@ -282,7 +282,7 @@
                     <div class="filter-group">
                         <label class="filter-label">Purpose</label>
                         <div class="pill-group">
-                            @foreach(['buy' => 'Buy', 'sell' => 'Sell', 'rent' => 'Rent'] as $v => $l)
+                            @foreach([ 'sell' => 'Sell', 'rent' => 'Rent'] as $v => $l)
                                 <label class="pill-label">
                                     <input type="radio" name="purpose" value="{{ $v }}" {{ request('purpose') === $v ? 'checked' : '' }}>
                                     <span class="pill-span">{{ $l }}</span>
@@ -412,7 +412,7 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 @forelse($properties as $property)
-                    <x-property-card :property="$property" />
+                    <x-property-card :property="$property" :showScore="true" />
                 @empty
                     <div class="col-span-full" style="text-align:center; padding:5rem 2rem; background:#fff; border:1px solid #ede8df; border-radius:4px;">
                         <div style="width:4rem; height:4rem; border-radius:50%; background:rgba(201,169,110,0.08); border:1px solid rgba(201,169,110,0.2); display:inline-flex; align-items:center; justify-content:center; margin-bottom:1.25rem;">

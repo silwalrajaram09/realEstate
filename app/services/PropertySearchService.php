@@ -62,15 +62,11 @@ class PropertySearchService
             // - Match in title = medium (5 pts)
             // - Match in description = lower (2 pts)
 
-            $query->selectRaw("
-                properties.*,
-                (
-                    CASE WHEN LOWER(location) LIKE ? THEN 10 ELSE 0 END +
-                    CASE WHEN LOWER(title) LIKE ? THEN 5 ELSE 0 END +
-                    CASE WHEN LOWER(description) LIKE ? THEN 2 ELSE 0 END
-                ) AS relevance_score
-            ", [$like, $like, $like])
-                ->orderByDesc('relevance_score');
+            $query->where(function ($sub) use ($like) {
+                $sub->where('location', 'LIKE', $like)
+                    ->orWhere('title', 'LIKE', $like)
+                    ->orWhere('description', 'LIKE', $like);
+            });
         } else {
             $query->select('properties.*');
         }

@@ -4,16 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\Property;
 use Illuminate\Http\Request;
-use App\Services\PropertySearchService;
+use App\Services\PropertyService;
 
+//use App\Services\PropertySearchService;
 class PropertyController extends Controller
 {
     /**
      * Unified property listing/search method
      */
-    public function list(Request $request, PropertySearchService $service)
+    public function list(Request $request)
     {
-        // Get all filters from request
+        $cosine = app(CosineSimilarityService::class);
         $filters = $request->only([
             'purpose',
             'type',
@@ -27,10 +28,20 @@ class PropertyController extends Controller
             'per_page'
         ]);
 
-        // Use service to get filtered properties
-        $properties = $service->search($filters);
-        //$properties = Property::latest()->take(6)->get();
-        return view('properties.list', compact('properties'));
+        $query = Property::approved()->with('seller');
+        Property::scopeFilters($query, $filters); // model scopes
+        $properties = $query->paginate($filters['per_page'] ?? 12);
+
+        $prefVec = $cosine->prefsToVector($filters);
+        $scoredProps = $properties->getCollection()
+            ->map(fn($p) => ['p' => $p, 'score' => $cosine->cosine($prefVec, $cosine->vectorize($p))])
+            ->sortByDesc('score')
+            ->pluck('p');
+
+        $paginated = new LengthAwarePaginator($scoredProps, $properties->total(), $properties->perPage(), $properties->currentPage());
+        $paginated->setPath(request()->url());
+
+        return view('properties.list', compact('properties', $paginated));
     }
 
     /**
@@ -38,20 +49,8 @@ class PropertyController extends Controller
      */
     public function show(Property $property)
     {
-        $recommendations = Property::query()
-            ->where('id', '!=', $property->id)
-            ->where('type', $property->type)
-            ->whereBetween('price', [
-                $property->price * 0.9,
-                $property->price * 1.1
-            ])
-            ->orderByRaw("
-                (location = ?) DESC,
-                ABS(price - ?) ASC
-            ", [$property->location, $property->price])
-            ->limit(6)
-            ->get();
-
+        $cosine = app(CosineSimilarityService::class);
+        $recommendations = $cosine->rankSimilar($property);
         return view('properties.show', compact('property', 'recommendations'));
     }
 }
