@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Buyer\FavoriteController;
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\PropertyController;
@@ -10,6 +11,7 @@ use App\Http\Controllers\SellerDashboardController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\buyer\BuyerPropertyController as BuyerPropertyController;
 use App\Http\Controllers\Seller\PropertyController as SellerPropertyController;
+//use App\Http\Controllers\Buyer\FavoriteController as BuyerFavoriteController;
 
 
 
@@ -96,6 +98,10 @@ Route::middleware(['auth'])->group(function () {
             // API endpoint for infinite scroll / load more
             Route::get('/properties/load-more', [BuyerPropertyController::class, 'loadMore'])
                 ->name('properties.load-more');
+
+            Route::get('/favorites', [FavoriteController::class, 'favorites'])->name('favorites');
+            Route::post('/favorites/{property}/toggle', [FavoriteController::class, 'toggle'])->name('favorites.toggle');
+            Route::get('/favorites/{property}/check', [FavoriteController::class, 'check'])->name('favorites.check');
         });
 
 

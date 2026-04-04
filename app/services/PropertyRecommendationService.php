@@ -11,50 +11,66 @@ use Illuminate\Support\Facades\Cache;
 class PropertyRecommendationService
 {
     private const WEIGHTS = [
-        'price' => 25,
-        'type' => 10,
-        'purpose' => 10,
-        'category' => 10,
-        'bedrooms' => 5,
+        'price'     => 25,
+        'type'      => 10,
+        'purpose'   => 10,
+        'category'  => 10,
+        'bedrooms'  => 5,
         'bathrooms' => 5,
-        'text' => 10,
-        'location' => 25,
+        'text'      => 10,  // now powered by cosine instead of raw LIKE score
+        'location'  => 25,
     ];
 
     private const TOLERANCE = [
-        'price' => 0.20,
-        'bedrooms' => 1,
+        'price'     => 0.20,
+        'bedrooms'  => 1,
         'bathrooms' => 1,
     ];
 
-    private const EARTH_RADIUS = 6371; // km
-    private const LOCATION_RADIUS = 50; // km
+    private const EARTH_RADIUS    = 6371; // km
+    private const LOCATION_RADIUS = 50;   // km
 
-    /*
-    |--------------------------------------------------------------------------
-    | Main Search
-    |--------------------------------------------------------------------------
-    */
+    public function __construct(
+        protected Cosinesimilarityservice $cosine
+    ) {}
+
+    
     public function search(array $filters, int $perPage = 6): LengthAwarePaginator
     {
         $query = Property::query()
             ->approved()
-            ->with('seller'); // prevent N+1
+            ->with('seller');
 
         $this->applyFilters($query, $filters);
         $this->applyScoring($query, $filters);
         $this->applySorting($query, $filters);
 
-        return $query
+        $paginator = $query
             ->paginate(min(max($perPage, 6), 48))
             ->withQueryString();
+
+        // If there's a text query, blend cosine score into relevance_score
+        if (!empty($filters['q'])) {
+            $paginator->getCollection()->transform(function ($property) use ($filters) {
+                $cosineScore = $this->cosine->score($property, $filters['q']);
+
+                // Blend: DB relevance_score (0–100 range) + cosine (0–1) × text weight
+                $property->relevance_score = ($property->relevance_score ?? 0)
+                    + ($cosineScore * self::WEIGHTS['text']);
+
+                $property->cosine_score = round($cosineScore, 4);
+                return $property;
+            });
+
+            // Re-sort the current page by final blended score
+            $sorted = $paginator->getCollection()->sortByDesc('relevance_score')->values();
+            $paginator->setCollection($sorted);
+        }
+
+        return $paginator;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Personalized Recommendations
-    |--------------------------------------------------------------------------
-    */
+   
     public function personalized(array $preferences, int $limit = 10): Collection
     {
         $query = Property::query()
@@ -64,11 +80,26 @@ class PropertyRecommendationService
         $this->applyFilters($query, $preferences);
         $this->applyScoring($query, $preferences);
 
-        return $query
+        $results = $query
             ->orderByDesc('relevance_score')
             ->orderBy('price', 'asc')
-            ->limit($limit)
+            ->limit($limit * 3) // fetch wider pool for cosine re-ranking
             ->get();
+
+        // Blend cosine score if there's a text query in preferences
+        if (!empty($preferences['q'])) {
+            $results = $this->cosine->rerank($results, $preferences['q'])
+                ->map(function ($property) use ($preferences) {
+                    $cosineScore = $property->cosine_score ?? 0;
+                    $property->relevance_score = ($property->relevance_score ?? 0)
+                        + ($cosineScore * self::WEIGHTS['text']);
+                    return $property;
+                })
+                ->sortByDesc('relevance_score')
+                ->values();
+        }
+
+        return $results->take($limit);
     }
 
     /*
@@ -107,7 +138,20 @@ class PropertyRecommendationService
                 ->orderBy('distance');
         }
 
-        return $query->limit($limit)->get();
+        $candidates = $query->limit($limit * 3)->get();
+
+        // Re-rank similar properties by cosine similarity to the source property's text
+        $referenceText = implode(' ', [
+            $property->title ?? '',
+            $property->location ?? '',
+            $property->description ?? '',
+        ]);
+
+        if (trim($referenceText) !== '') {
+            return $this->cosine->rerank($candidates, $referenceText)->take($limit);
+        }
+
+        return $candidates->take($limit);
     }
 
     /*
@@ -169,7 +213,7 @@ class PropertyRecommendationService
     */
     private function applyScoring(Builder $query, array $data): void
     {
-        $parts = [];
+        $parts    = [];
         $bindings = [];
 
         $this->priceScore($data, $parts, $bindings);
@@ -179,6 +223,10 @@ class PropertyRecommendationService
         $this->rangeScore('bedrooms', $data, self::WEIGHTS['bedrooms'], self::TOLERANCE['bedrooms'], $parts, $bindings);
         $this->rangeScore('bathrooms', $data, self::WEIGHTS['bathrooms'], self::TOLERANCE['bathrooms'], $parts, $bindings);
         $this->locationScore($data, $parts, $bindings);
+
+        // NOTE: text weight is intentionally excluded from SQL scoring here.
+        // Cosine similarity is added as a PHP post-processing step in search() / personalized()
+        // to keep SQL clean and benefit from TF-IDF corpus-aware weighting.
 
         if (empty($parts)) {
             $query->selectRaw('properties.*, 0 AS relevance_score');
@@ -195,9 +243,9 @@ class PropertyRecommendationService
         if (empty($data['min_price']) && empty($data['max_price']))
             return;
 
-        $min = $data['min_price'] ?? 0;
-        $max = $data['max_price'] ?? 999999999;
-        $target = ($min + $max) / 2;
+        $min       = $data['min_price'] ?? 0;
+        $max       = $data['max_price'] ?? 999999999;
+        $target    = ($min + $max) / 2;
         $tolerance = $target * self::TOLERANCE['price'];
 
         $parts[] = "
@@ -208,15 +256,7 @@ class PropertyRecommendationService
             END
         ";
 
-        array_push(
-            $bindings,
-            $min,
-            $max,
-            self::WEIGHTS['price'],
-            $min - $tolerance,
-            $max + $tolerance,
-            self::WEIGHTS['price']
-        );
+        array_push($bindings, $min, $max, self::WEIGHTS['price'], $min - $tolerance, $max + $tolerance, self::WEIGHTS['price']);
     }
 
     private function exactMatchScore(string $field, array $data, int $weight, array &$parts, array &$bindings): void
@@ -241,15 +281,7 @@ class PropertyRecommendationService
             END
         ";
 
-        array_push(
-            $bindings,
-            $data[$field],
-            $tolerance,
-            $weight,
-            $data[$field],
-            $tolerance,
-            $weight
-        );
+        array_push($bindings, $data[$field], $tolerance, $weight, $data[$field], $tolerance, $weight);
     }
 
     private function locationScore(array $data, array &$parts, array &$bindings): void
@@ -271,15 +303,7 @@ class PropertyRecommendationService
             )
         ";
 
-        array_push(
-            $bindings,
-            self::WEIGHTS['location'],
-            self::EARTH_RADIUS,
-            $data['lat'],
-            $data['lng'],
-            $data['lat'],
-            self::LOCATION_RADIUS
-        );
+        array_push($bindings, self::WEIGHTS['location'], self::EARTH_RADIUS, $data['lat'], $data['lng'], $data['lat'], self::LOCATION_RADIUS);
     }
 
     /*
@@ -292,10 +316,10 @@ class PropertyRecommendationService
         $sort = $filters['sort'] ?? null;
 
         match ($sort) {
-            'price_asc' => $query->orderBy('price', 'asc'),
+            'price_asc'  => $query->orderBy('price', 'asc'),
             'price_desc' => $query->orderBy('price', 'desc'),
-            'latest' => $query->orderBy('created_at', 'desc'),
-            default => $query->orderByDesc('relevance_score')->orderBy('price', 'asc'),
+            'latest'     => $query->orderBy('created_at', 'desc'),
+            default      => $query->orderByDesc('relevance_score')->orderBy('price', 'asc'),
         };
     }
 
@@ -322,9 +346,9 @@ class PropertyRecommendationService
     {
         return Cache::remember('property_stats', 3600, fn() => [
             'total' => Property::approved()->count(),
-            'sale' => Property::approved()->where('purpose', 'buy')->count(),
-            'rent' => Property::approved()->where('purpose', 'rent')->count(),
-            'avg' => Property::approved()->avg('price'),
+            'sale'  => Property::approved()->where('purpose', 'buy')->count(),
+            'rent'  => Property::approved()->where('purpose', 'rent')->count(),
+            'avg'   => Property::approved()->avg('price'),
         ]);
     }
 }

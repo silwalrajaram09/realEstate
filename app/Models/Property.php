@@ -148,23 +148,43 @@ class Property extends Model
     //         ->when($minPrice, fn($q) => $q->where('price', '>=', $minPrice))
     //         ->when($maxPrice, fn($q) => $q->where('price', '<=', $maxPrice));
     // }
-    public function scopePriceRange($query, $min, $max)
+    // public function scopePriceRange($query, $min, $max)
+    // {
+    //     if (!$min && !$max)
+    //         return $query;
+
+    //     $min = $min ?? 0;
+    //     $max = $max ?? 999999999;
+
+    //     $target = ($min + $max) / 2;
+    //     $tolerance = $target * 0.20;
+
+    //     return $query->whereBetween('price', [
+    //         $min - $tolerance,
+    //         $max + $tolerance
+    //     ]);
+    // }
+    public function scopePriceRange($query, $min = null, $max = null)
     {
-        if (!$min && !$max)
+        if (!$min && !$max) {
             return $query;
+        }
 
-        $min = $min ?? 0;
-        $max = $max ?? 999999999;
+        if ($min && $max) {
+            // Apply tolerance only when both bounds exist
+            $target = ($min + $max) / 2;
+            $tolerance = max($target * 0.20, 1000); // Minimum 1000 tolerance
+            $lowerBound = max(0, $min - $tolerance);
 
-        $target = ($min + $max) / 2;
-        $tolerance = $target * 0.20;
+            return $query->whereBetween('price', [$lowerBound, $max + $tolerance]);
+        }
 
-        return $query->whereBetween('price', [
-            $min - $tolerance,
-            $max + $tolerance
-        ]);
+        if ($min) {
+            return $query->where('price', '>=', max(0, $min));
+        }
+
+        return $query->where('price', '<=', $max);
     }
-
     public function scopeMinBedrooms($query, $bedrooms)
     {
         return $query->when($bedrooms, fn($q) => $q->where('bedrooms', '>=', (int) $bedrooms));
@@ -330,5 +350,13 @@ class Property extends Model
     public function incrementViews()
     {
         $this->increment('views_count');
+    }
+    public function getDocumentTextAttribute(): string
+    {
+        return implode(' ', [
+            $this->location ?? '',
+            $this->title ?? '',
+            $this->description ?? '',
+        ]);
     }
 }

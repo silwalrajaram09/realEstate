@@ -14,11 +14,11 @@
             font-family: 'Playfair Display', serif;
             font-size: 1.35rem;
             letter-spacing: -0.01em;
-            color: #1a1a2e;
+            color: #3c3cbb;
         }
 
         .dark .nav-brand {
-            color: #f5f0e8;
+            color: #4fa537;
         }
 
         .nav-brand span {
@@ -31,7 +31,7 @@
             font-weight: 500;
             letter-spacing: 0.06em;
             text-transform: uppercase;
-            color: #4a4a5a;
+            color: #bcbcce;
             padding: 0.375rem 0;
             margin: 0 0.875rem;
             transition: color 0.2s ease;
@@ -54,7 +54,7 @@
         }
 
         .nav-link:hover {
-            color: #1a1a2e;
+            color: #6060b2;
         }
 
         .dark .nav-link:hover {
@@ -404,7 +404,7 @@
                         </x-slot>
 
                         <x-slot name="content">
-                            <div class="dropdown-menu bg-white dark:bg-gray-800">
+                            <div class="dropdown-menu bg-white">
                                 {{-- Header --}}
                                 <div class="dropdown-header">
                                     <p class="dropdown-email">{{ Auth::user()->email }}</p>
@@ -424,7 +424,23 @@
                                         </svg>
                                         My Profile
                                     </a>
-
+                                    @if($user->isBuyer())
+                                        <a href="{{ route('buyer.favorites') }}" class="dropdown-item">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                                            </svg>
+                                            My Saved(fav) properties
+                                        </a>
+                                    @endif
+                                    @if($user->isSeller())
+                                        <a href="{{ route('seller.dashboard') }}" class="dropdown-item">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h
+                                            w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0017.07 7H21a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                                            </svg>
+                                            Seller Dashboard
+                                        </a>
+                                    @endif
                                     <div class="dropdown-separator"></div>
 
                                     <form method="POST" action="{{ route('logout') }}">
