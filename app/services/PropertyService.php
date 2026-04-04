@@ -21,21 +21,44 @@ class PropertyService
         $query = Property::query()->approved()->with('seller');
         $this->applyFilters($query, $filters);
 
-        // 🔥 fetch more results before ranking (important fix)
+        // Fetch enough data before ranking
         $results = $query->limit(100)->get();
 
         $prefVec = $cosine->prefsToVector($filters);
 
         $sorted = $results
-            ->map(fn($p) => [
-                'property' => $p,
-                'score' => $cosine->cosine($prefVec, $cosine->vectorize($p))
-            ])
+            ->map(function ($p) use ($cosine, $prefVec, $filters) {
+
+                $cosineScore = $cosine->cosine($prefVec, $cosine->vectorize($p));
+
+                // 🔥 Distance score
+                $distanceScore = 0;
+
+                if (isset($filters['lat'], $filters['lng']) && $p->latitude && $p->longitude) {
+                    $distance = $this->calculateDistance(
+                        $filters['lat'],
+                        $filters['lng'],
+                        $p->latitude,
+                        $p->longitude
+                    );
+
+                    // exponential decay (better than linear)
+                    $distanceScore = exp(-$distance / 10);
+                }
+
+                // 🔥 Final hybrid score
+                $finalScore = (0.7 * $cosineScore) + (0.3 * $distanceScore);
+
+                return [
+                    'property' => $p,
+                    'score' => $finalScore,
+                ];
+            })
             ->sortByDesc('score')
             ->pluck('property')
             ->values();
 
-        // manual pagination after ranking
+        // Manual pagination
         $page = request()->get('page', 1);
         $items = $sorted->slice(($page - 1) * $perPage, $perPage)->values();
 
@@ -69,7 +92,6 @@ class PropertyService
 
         if ($favourites->isNotEmpty()) {
 
-            // 🔥 weighted profile (recent matters more)
             $profile = [];
             $totalWeight = 0;
 
@@ -167,6 +189,20 @@ class PropertyService
     private function haversineBindings(float $lat, float $lng): array
     {
         return [self::EARTH_RADIUS, $lat, $lng, $lat];
+    }
+
+    private function calculateDistance($lat1, $lng1, $lat2, $lng2): float
+    {
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+
+        $a = sin($dLat / 2) * sin($dLat / 2) +
+             cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+             sin($dLng / 2) * sin($dLng / 2);
+
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+        return self::EARTH_RADIUS * $c;
     }
 
     private function syntheticProperty(array $profile): Property
