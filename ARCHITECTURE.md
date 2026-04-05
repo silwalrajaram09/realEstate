@@ -5,16 +5,13 @@
 1. **User Registration**: Users can register and create an account.
 2. **Property Listing**: Owners can list their properties on the platform.
 3. **Search and Filter**: Users can search for properties based on various filters.
-4. **Booking Process**: Users can initiate bookings for properties.
-5. **Payment**: Integration of secure payment gateways for transactions.
-6. **Feedback System**: Users can leave reviews and feedback on properties.
+4.**Feedback System**: Users can leave reviews and feedback on properties.
 
 ## System Architecture
 
-- **Frontend**: React.js for a dynamic user interface.
-- **Backend**: Node.js with Express.js to handle API requests.
-- **Database**: MongoDB for flexible data storage and retrieval.
-- **Cloud Storage**: AWS S3 for storing property images and documents.
+- **Frontend**: laravel blade , vite , alpine js  and tailwind css
+- **Backend**: Laravel for the backend.
+- **Database**: Mysql for the relational database.
 
 ## Design Considerations
 
