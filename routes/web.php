@@ -9,6 +9,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\BuyerDashboardController;
 use App\Http\Controllers\SellerDashboardController;
 use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\EnquiryController;
 use App\Http\Controllers\buyer\BuyerPropertyController as BuyerPropertyController;
 use App\Http\Controllers\Seller\PropertyController as SellerPropertyController;
 //use App\Http\Controllers\Buyer\FavoriteController as BuyerFavoriteController;
@@ -91,6 +92,16 @@ Route::middleware(['auth'])->group(function () {
 
             Route::get('/properties/{property}', [BuyerPropertyController::class, 'show'])
                 ->name('properties.show');
+            //enquiry route
+            //propertis/{id}/enquire
+            Route::post('/properties/{property}/enquire', [EnquiryController::class, 'store'])->name('properties.enquire');
+            Route::get('/enquiries', [EnquiryController::class, 'buyerIndex'])->name('enquiries.index');
+            // Route::get('/enquiries/{enquiry}', [EnquiryController::class, 'show'])->name('enquiries.show');
+            // Route::post('/enquiries/{enquiry}/reply', [EnquiryController::class, 'reply'])->name('enquiries.reply');
+            // Route::patch('/enquiries/{enquiry}/status', [EnquiryController::class, 'updateStatus'])->name('enquiries.status');
+            // Route::delete('/enquiries/{enquiry}', [EnquiryController::class, 'destroy'])->name('enquiries.destroy');
+
+
 
             Route::get('/suggestions', [BuyerPropertyController::class, 'suggestions'])
                 ->name('suggestions');
@@ -118,6 +129,7 @@ Route::middleware(['auth'])->group(function () {
                 ->name('properties.rejected');
             Route::resource('properties', SellerPropertyController::class);
         });
+        Route::get('/seller/enquiries', [EnquiryController::class, 'sellerIndex'])->name('seller.enquiries.index');
 
     });
 

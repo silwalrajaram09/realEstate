@@ -431,14 +431,21 @@
                                             </svg>
                                             My Saved(fav) properties
                                         </a>
+                                        <a href="{{ route('buyer.enquiries.index') }}" class="dropdown-item">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
+                                            </svg>
+                                            My Enquiries
+                                        </a>
+
                                     @endif
                                     @if($user->isSeller())
-                                        <a href="{{ route('seller.dashboard') }}" class="dropdown-item">
+                                        <a href="{{ route('seller.enquiries.index') }}" class="dropdown-item">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h
                                             w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0017.07 7H21a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
                                             </svg>
-                                            Seller Dashboard
+                                            See enquiries
                                         </a>
                                     @endif
                                     <div class="dropdown-separator"></div>

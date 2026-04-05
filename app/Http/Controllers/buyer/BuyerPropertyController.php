@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Models\Property;
 use App\Models\PropertyView;
+use App\Models\Favorite;
 use Illuminate\Support\Facades\Auth;
 use App\Services\PropertySearchService;
 use App\Services\PropertyRecommendationService;
@@ -26,25 +27,15 @@ class BuyerPropertyController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    /**
-     * Browse all properties with filters, weighted scoring, and cosine re-ranking.
-     */
     public function index(Request $request)
     {
-        $filters = $this->extractFilters($request);
-
-        // RecommendationService already blends SQL score + cosine internally
-        $properties = $this->recommendationService->search($filters);
-
-        // Pass cosine meta to view so blade can show a "relevance" badge if needed
+        $filters       = $this->extractFilters($request);
+        $properties    = $this->recommendationService->search($filters);
         $hasTextSearch = !empty($filters['q']);
 
         return view('buyer.properties.index', compact('properties', 'filters', 'hasTextSearch'));
     }
 
-    /**
-     * Properties for buying (pre-filtered to purpose=buy).
-     */
     public function buy(Request $request)
     {
         $filters = array_merge(
@@ -52,15 +43,12 @@ class BuyerPropertyController extends Controller
             ['purpose' => 'buy']
         );
 
-        $properties = $this->recommendationService->search($filters);
+        $properties    = $this->recommendationService->search($filters);
         $hasTextSearch = !empty($filters['q']);
 
         return view('buyer.properties.buy', compact('properties', 'filters', 'hasTextSearch'));
     }
 
-    /**
-     * Properties for renting (pre-filtered to purpose=rent).
-     */
     public function rent(Request $request)
     {
         $filters = array_merge(
@@ -68,7 +56,7 @@ class BuyerPropertyController extends Controller
             ['purpose' => 'rent']
         );
 
-        $properties = $this->recommendationService->search($filters);
+        $properties    = $this->recommendationService->search($filters);
         $hasTextSearch = !empty($filters['q']);
 
         return view('buyer.properties.rent', compact('properties', 'filters', 'hasTextSearch'));
@@ -80,29 +68,22 @@ class BuyerPropertyController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    /**
-     * Property detail with cosine-powered similar properties and recently viewed.
-     */
     public function show(Property $property)
     {
         if ($property->status !== 'approved') {
             abort(404, 'Property not found or not available.');
         }
 
-        // Track view
         $property->incrementViews();
         $this->trackView($property);
 
-        // Load recently viewed
         $recentlyViewedProperties = $this->getRecentlyViewed($property);
-
-        // Similar properties — cosine re-ranks using property's own text as the query
-        $recommendations = $this->recommendationService->getSimilarProperties($property);
+        $recommendations          = $this->recommendationService->getSimilarProperties($property);
 
         return view('buyer.properties.show', [
-            'property'            => $property,
-            'recommendations'     => $recommendations,
-            'recentlyViewed'      => $recentlyViewedProperties,
+            'property'        => $property,
+            'recommendations' => $recommendations,
+            'recentlyViewed'  => $recentlyViewedProperties,
         ]);
     }
 
@@ -112,13 +93,9 @@ class BuyerPropertyController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    /**
-     * Load more properties for infinite scroll (returns JSON).
-     * Cosine re-ranking is applied inside recommendationService->search().
-     */
     public function loadMore(Request $request): JsonResponse
     {
-        $filters = $this->extractFilters($request);
+        $filters             = $this->extractFilters($request);
         $filters['page']     = (int) $request->get('page', 2);
         $filters['per_page'] = min((int) $request->get('per_page', 12), 24);
 
@@ -135,33 +112,105 @@ class BuyerPropertyController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | Personalized & Nearby
+    | Personalized Suggestions
+    |
+    | Uses the exact same 5-strategy cascade as BuyerDashboardController so
+    | both pages always produce consistent, coherent recommendations.
+    | personalized() is called as personalized($preferences, $limit) — a plain
+    | Collection is returned, matching the dashboard's existing signature.
     |--------------------------------------------------------------------------
     */
 
-    /**
-     * Personalized suggestions based on user preferences + cosine re-ranking.
-     * If a text query is present, cosine re-ranks the personalized pool.
-     */
     public function suggestions(Request $request)
     {
-        $preferences = $request->only([
-            'purpose', 'type', 'category',
-            'min_price', 'max_price',
-            'bedrooms', 'bathrooms',
-            'lat', 'lng',
-            'q',  // ← cosine kicks in when present
-        ]);
+        $user       = Auth::user();
+        $properties = collect();
 
-        $properties = $this->recommendationService->personalized($preferences, limit: 12);
+        // ── Strategy 1: Favorites (strongest signal) ──────────────────────
+        if ($user) {
+            $favorites = Favorite::where('user_id', $user->id)
+                ->with('property')
+                ->latest()
+                ->take(5)
+                ->get()
+                ->pluck('property')
+                ->filter();
 
-        return view('buyer.suggestions.index', compact('properties', 'preferences'));
+            if ($favorites->isNotEmpty()) {
+                $preferences = $this->extractPreferences($favorites);
+                $properties  = $this->recommendationService->personalized($preferences, 12);
+            }
+        }
+
+        // ── Strategy 2: Recently viewed — DB (strong signal) ──────────────
+        if ($properties->isEmpty() && $user) {
+            $recentViews = PropertyView::where('user_id', $user->id)
+                ->with('property')
+                ->latest()
+                ->take(10)
+                ->get()
+                ->pluck('property')
+                ->filter();
+
+            if ($recentViews->isNotEmpty()) {
+                $preferences = $this->extractPreferences($recentViews);
+                $properties  = $this->recommendationService->personalized($preferences, 12);
+            }
+        }
+
+        // ── Strategy 3: Recently viewed — session (guests) ────────────────
+        if ($properties->isEmpty() && !$user) {
+            $sessionIds = session()->get('recently_viewed', []);
+
+            if (!empty($sessionIds)) {
+                $sessionViewed = Property::whereIn('id', $sessionIds)
+                    ->approved()
+                    ->get()
+                    ->sortBy(fn($p) => array_search($p->id, $sessionIds))
+                    ->values();
+
+                if ($sessionViewed->isNotEmpty()) {
+                    $preferences = $this->extractPreferences($sessionViewed);
+                    $properties  = $this->recommendationService->personalized($preferences, 12);
+                }
+            }
+        }
+
+        // ── Strategy 4: User city ─────────────────────────────────────────
+        if ($properties->isEmpty() && $user && $user->city) {
+            $properties = Property::approved()
+                ->where('location', 'LIKE', "%{$user->city}%")
+                ->inRandomOrder()
+                ->take(12)
+                ->get();
+        }
+
+        // ── Strategy 5: Trending fallback ─────────────────────────────────
+        if ($properties->isEmpty()) {
+            $properties = Property::approved()
+                ->orderBy('views_count', 'desc')
+                ->take(12)
+                ->get();
+        }
+
+        // ── Cosine re-rank if user typed a text query ──────────────────────
+        $query = $request->get('q');
+        if ($query && $properties->isNotEmpty()) {
+            $properties = $this->cosineService->rerank($properties, $query);
+        }
+
+        // Label shown in the blade to explain what produced the results
+        $strategyLabel = $this->resolveStrategyLabel($user, $query);
+
+        return view('buyer.suggestions.index', compact('properties', 'strategyLabel'));
     }
 
-    /**
-     * Properties within a radius. If a text query is also provided,
-     * cosine re-ranks the nearby results by text relevance too.
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | Nearby
+    |--------------------------------------------------------------------------
+    */
+
     public function nearby(Request $request)
     {
         $lat    = $request->get('lat');
@@ -175,7 +224,6 @@ class BuyerPropertyController extends Controller
 
         $properties = $this->recommendationService->withinRadius($lat, $lng, $radius);
 
-        // Optional: if user also typed a text query, re-rank nearby results with cosine
         if ($query && $properties->isNotEmpty()) {
             $properties = $this->cosineService->rerank($properties, $query);
         }
@@ -185,14 +233,10 @@ class BuyerPropertyController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | Search (SearchService — lightweight, cached)
+    | Search
     |--------------------------------------------------------------------------
     */
 
-    /**
-     * Quick search endpoint — uses PropertySearchService (cached, cosine re-ranked).
-     * Use this for search bars and autocomplete-style results.
-     */
     public function search(Request $request): JsonResponse
     {
         $data = $request->only([
@@ -202,14 +246,13 @@ class BuyerPropertyController extends Controller
             'sort', 'per_page',
         ]);
 
-        // SearchService handles cosine re-ranking internally for text queries
         $results = $this->searchService->search($data);
 
         return response()->json([
-            'properties'    => $results->items(),
-            'has_more'      => $results->hasMorePages(),
-            'current_page'  => $results->currentPage(),
-            'total'         => $results->total(),
+            'properties'   => $results->items(),
+            'has_more'     => $results->hasMorePages(),
+            'current_page' => $results->currentPage(),
+            'total'        => $results->total(),
         ]);
     }
 
@@ -226,14 +269,83 @@ class BuyerPropertyController extends Controller
 
     /*
     |--------------------------------------------------------------------------
+    | Enquiry
+    |--------------------------------------------------------------------------
+    */
+
+    public function enquire(Request $request, Property $property): JsonResponse
+    {
+        $request->validate([
+            'name'  => 'required|string|max:255',
+            'email' => 'required|email|max:255',
+            'phone' => 'required|string|max:20',
+        ]);
+
+        // TODO: send email / save to enquiries table
+
+        return response()->json([
+            'message' => 'Your enquiry has been sent successfully!',
+        ]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | Private Helpers
+    | extractPreferences() and getMostFrequent() are identical to the copies
+    | in BuyerDashboardController so both always produce the same preference
+    | vector from the same data.
     |--------------------------------------------------------------------------
     */
 
     /**
+     * Build a preference array from a collection of Property models.
+     */
+    private function extractPreferences($properties): array
+    {
+        return [
+            'purpose'   => $this->getMostFrequent($properties, 'purpose'),
+            'type'      => $this->getMostFrequent($properties, 'type'),
+            'category'  => $this->getMostFrequent($properties, 'category'),
+            'min_price' => $properties->min('price') * 0.8,
+            'max_price' => $properties->max('price') * 1.2,
+            'bedrooms'  => $this->getMostFrequent($properties, 'bedrooms'),
+        ];
+    }
+
+    /**
+     * Return the most frequently occurring non-null value for $field.
+     */
+    private function getMostFrequent($collection, string $field): mixed
+    {
+        $values = $collection->pluck($field)->filter();
+
+        if ($values->isEmpty()) {
+            return null;
+        }
+
+        $counts = array_count_values($values->toArray());
+        arsort($counts);
+        return key($counts);
+    }
+
+    /**
+     * Human-readable label explaining which strategy produced the results.
+     */
+    private function resolveStrategyLabel(?object $user, ?string $query): string
+    {
+        if ($query) {
+            return 'Search-matched & cosine ranked';
+        }
+
+        if (!$user) {
+            return 'Based on your browsing history';
+        }
+
+        return 'Personalised for you';
+    }
+
+    /**
      * Extract standard filter fields from the request.
-     *
-     * @param  string[] $excludes  Fields to skip (e.g. 'purpose' when hardcoding it)
      */
     private function extractFilters(Request $request, array $excludes = []): array
     {
@@ -274,7 +386,7 @@ class BuyerPropertyController extends Controller
     }
 
     /**
-     * Load the recently viewed properties list for the current user or guest.
+     * Load the recently viewed list for the current user or guest.
      */
     private function getRecentlyViewed(Property $property): \Illuminate\Database\Eloquent\Collection|\Illuminate\Support\Collection
     {

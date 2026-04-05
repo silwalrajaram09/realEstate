@@ -238,7 +238,7 @@
         <div class="panel reveal">
             <div class="panel-head">
                 <div>
-                    <div class="panel-eyebrow">AI Picks</div>
+                    <div class="panel-eyebrow">System Picks</div>
                     <div class="panel-title">Recommended For You</div>
                 </div>
                 <a href="{{ route('buyer.suggestions') }}" class="panel-link">View All →</a>
@@ -252,9 +252,9 @@
             </div>
         </div>
     @endif
-
-    {{-- ── NEAR YOU ── --}}
-    @if(isset($nearbyProperties) && $nearbyProperties->count() > 0)
+     
+    {{-- ── NEARBY PROPERTIES ── --}}
+   @if(isset($nearbyProperties) && $nearbyProperties->count() > 0)
         <div class="panel reveal">
             <div class="panel-head">
                 <div>
@@ -270,8 +270,8 @@
                 </div>
             </div>
         </div>
-    @endif
 
+    @endif
     {{-- ── RECENTLY VIEWED ── --}}
     {{-- @if(isset($recentlyViewed) && $recentlyViewed->count() > 0)
         <div class="panel reveal">

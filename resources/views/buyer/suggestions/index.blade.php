@@ -1,293 +1,6 @@
 <x-app-layout>
 
-<style>
-    .sugg-root { font-family: 'Outfit', sans-serif; }
-
-    /* ── Header ── */
-    .sugg-header {
-        position: relative;
-        overflow: hidden;
-        background: #0f0f0f;
-        border-radius: 4px;
-        padding: 3rem 3.5rem;
-        margin-bottom: 2.5rem;
-    }
-    .sugg-header::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background-image:
-            repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(201,169,110,0.06) 39px, rgba(201,169,110,0.06) 40px),
-            repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(201,169,110,0.06) 39px, rgba(201,169,110,0.06) 40px);
-        pointer-events: none;
-    }
-    .sugg-header::after {
-        content: '';
-        position: absolute;
-        top: -4rem; right: -4rem;
-        width: 18rem; height: 18rem;
-        border-radius: 50%;
-        background: radial-gradient(circle, rgba(201,169,110,0.12) 0%, transparent 70%);
-        pointer-events: none;
-    }
-    .sugg-header-eyebrow {
-        display: flex; align-items: center; gap: 0.625rem;
-        margin-bottom: 0.75rem;
-    }
-    .sugg-header-eyebrow-line { width: 1.5rem; height: 1px; background: #c9a96e; }
-    .sugg-header-eyebrow span {
-        font-size: 0.65rem; letter-spacing: 0.14em; text-transform: uppercase;
-        color: #c9a96e; font-weight: 600;
-    }
-    .sugg-header h1 {
-        font-family: 'Cormorant Garamond', serif;
-        font-size: clamp(2rem, 4vw, 3rem);
-        font-weight: 600;
-        color: #fff;
-        line-height: 1.1;
-        margin-bottom: 0.625rem;
-        position: relative;
-    }
-    .sugg-header h1 em { color: #c9a96e; font-style: italic; }
-    .sugg-header p {
-        font-size: 0.875rem; font-weight: 300;
-        color: rgba(255,255,255,0.5);
-        max-width: 36rem;
-        position: relative;
-    }
-    .sugg-header-meta {
-        position: absolute; top: 2.5rem; right: 3.5rem;
-        display: flex; flex-direction: column; align-items: flex-end; gap: 0.375rem;
-    }
-    .sugg-header-count {
-        font-family: 'Cormorant Garamond', serif;
-        font-size: 3.5rem; font-weight: 300; line-height: 1;
-        color: rgba(201,169,110,0.25);
-        letter-spacing: -0.02em;
-    }
-    .sugg-header-count-label {
-        font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase;
-        color: rgba(255,255,255,0.3); font-weight: 500;
-    }
-
-    /* ── Toolbar ── */
-    .sugg-toolbar {
-        display: flex; align-items: center; justify-content: space-between;
-        flex-wrap: wrap; gap: 0.75rem;
-        margin-bottom: 1.75rem;
-    }
-    .sugg-tabs {
-        display: flex; gap: 0;
-        border: 1px solid #ede8df;
-        border-radius: 3px;
-        overflow: hidden;
-        background: #fff;
-    }
-    .sugg-tab {
-        padding: 0.45rem 1rem;
-        font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
-        color: #8c8070;
-        background: transparent;
-        border: none;
-        border-right: 1px solid #ede8df;
-        cursor: pointer;
-        text-decoration: none;
-        transition: background 0.2s, color 0.2s;
-        display: flex; align-items: center; gap: 0.4rem;
-    }
-    .sugg-tab:last-child { border-right: none; }
-    .sugg-tab.active, .sugg-tab:hover {
-        background: #c9a96e;
-        color: #0f0f0f;
-    }
-    .sugg-sort {
-        font-family: 'Outfit', sans-serif;
-        font-size: 0.78rem; font-weight: 500; color: #3a3028;
-        background: #fff;
-        border: 1px solid #ddd5c8;
-        border-radius: 3px;
-        padding: 0.45rem 2rem 0.45rem 0.75rem;
-        appearance: none; -webkit-appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%239a8878' stroke-width='1.5' stroke-linecap='round' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 0.625rem center;
-        cursor: pointer;
-    }
-    .sugg-sort:focus { outline: none; border-color: #c9a96e; }
-
-    /* ── Cards ── */
-    .prop-card {
-        background: #fff;
-        border: 1px solid #ede8df;
-        border-radius: 4px;
-        overflow: hidden;
-        transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
-        display: flex; flex-direction: column;
-    }
-    .prop-card:hover {
-        border-color: #c9a96e;
-        transform: translateY(-3px);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.07);
-    }
-    .prop-img {
-        position: relative;
-        height: 13rem;
-        background: #f5f0e8;
-        overflow: hidden;
-    }
-    .prop-img img {
-        width: 100%; height: 100%;
-        object-fit: cover;
-        transition: transform 0.4s ease;
-    }
-    .prop-card:hover .prop-img img { transform: scale(1.04); }
-    .prop-img-placeholder {
-        width: 100%; height: 100%;
-        display: flex; align-items: center; justify-content: center;
-    }
-    .prop-badge {
-        position: absolute; top: 0.75rem; left: 0.75rem;
-        padding: 0.25rem 0.625rem;
-        font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-        border-radius: 2px;
-    }
-    .prop-badge-purpose {
-        background: #c9a96e; color: #0f0f0f;
-    }
-    .prop-badge-type {
-        position: absolute; top: 0.75rem; right: 0.75rem;
-        background: rgba(255,255,255,0.92); color: #4a4038;
-        padding: 0.25rem 0.625rem;
-        font-size: 0.62rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
-        border-radius: 2px;
-    }
-    .prop-score-bar {
-        position: absolute; bottom: 0; left: 0; right: 0;
-        height: 2px;
-        background: rgba(0,0,0,0.08);
-    }
-    .prop-score-fill {
-        height: 100%;
-        background: #c9a96e;
-        transition: width 0.6s ease;
-    }
-    .prop-body { padding: 1.25rem 1.375rem; flex: 1; display: flex; flex-direction: column; }
-    .prop-title {
-        font-family: 'Cormorant Garamond', serif;
-        font-size: 1.1rem; font-weight: 600; color: #0f0f0f;
-        line-height: 1.3;
-        margin-bottom: 0.5rem;
-        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-    }
-    .prop-loc {
-        display: flex; align-items: center; gap: 0.375rem;
-        font-size: 0.78rem; color: #8c8070; font-weight: 300;
-        margin-bottom: 0.875rem;
-    }
-    .prop-specs {
-        display: flex; align-items: center; gap: 1rem;
-        font-size: 0.75rem; color: #6b5e52; font-weight: 400;
-        padding: 0.75rem 0;
-        border-top: 1px solid #f0ece4;
-        border-bottom: 1px solid #f0ece4;
-        margin-bottom: 0.875rem;
-    }
-    .prop-spec { display: flex; align-items: center; gap: 0.3rem; }
-    .prop-footer { display: flex; align-items: center; justify-content: space-between; margin-top: auto; }
-    .prop-price {
-        font-family: 'Cormorant Garamond', serif;
-        font-size: 1.35rem; font-weight: 600; color: #0f0f0f;
-        line-height: 1;
-    }
-    .prop-price span { font-size: 0.7rem; font-weight: 400; color: #8c8070; display: block; margin-top: 0.2rem; }
-    .prop-btn {
-        display: inline-flex; align-items: center; gap: 0.375rem;
-        padding: 0.55rem 1rem;
-        background: #0f0f0f; color: #fff;
-        font-family: 'Outfit', sans-serif;
-        font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-        border-radius: 2px; text-decoration: none;
-        transition: background 0.2s, color 0.2s;
-    }
-    .prop-btn:hover { background: #c9a96e; color: #0f0f0f; }
-
-    /* ── Empty state ── */
-    .empty-state {
-        grid-column: 1 / -1;
-        display: flex; flex-direction: column; align-items: center;
-        text-align: center;
-        padding: 5rem 2rem;
-        background: #fff;
-        border: 1px solid #ede8df;
-        border-radius: 4px;
-    }
-    .empty-icon {
-        width: 5rem; height: 5rem;
-        border-radius: 50%;
-        background: rgba(201,169,110,0.07);
-        border: 1px solid rgba(201,169,110,0.2);
-        display: flex; align-items: center; justify-content: center;
-        margin-bottom: 1.5rem;
-    }
-    .empty-title {
-        font-family: 'Cormorant Garamond', serif;
-        font-size: 1.75rem; font-weight: 600; color: #0f0f0f;
-        margin-bottom: 0.625rem;
-    }
-    .empty-sub {
-        font-size: 0.875rem; font-weight: 300; color: #8c8070;
-        max-width: 26rem; margin: 0 auto 2rem;
-        line-height: 1.7;
-    }
-    .empty-steps {
-        display: flex; flex-wrap: wrap; justify-content: center; gap: 1.5rem;
-        margin-bottom: 2.5rem;
-        text-align: left;
-    }
-    .empty-step {
-        display: flex; align-items: flex-start; gap: 0.75rem;
-        max-width: 14rem;
-    }
-    .empty-step-num {
-        flex-shrink: 0;
-        width: 1.5rem; height: 1.5rem;
-        border-radius: 50%;
-        border: 1px solid #c9a96e;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 0.65rem; font-weight: 700; color: #c9a96e;
-    }
-    .empty-step-text { font-size: 0.8rem; color: #6b5e52; line-height: 1.5; }
-    .empty-step-text strong { display: block; color: #0f0f0f; font-weight: 600; margin-bottom: 0.125rem; }
-    .empty-cta {
-        display: inline-flex; align-items: center; gap: 0.5rem;
-        padding: 0.8rem 2rem;
-        background: #c9a96e; color: #0f0f0f;
-        font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
-        border-radius: 2px; text-decoration: none;
-        transition: background 0.2s;
-    }
-    .empty-cta:hover { background: #b5924f; }
-
-    /* ── Cosine badge ── */
-    .cosine-badge {
-        display: inline-flex; align-items: center; gap: 0.4rem;
-        padding: 0.25rem 0.625rem;
-        background: rgba(201,169,110,0.08);
-        border: 1px solid rgba(201,169,110,0.25);
-        border-radius: 2px;
-        font-size: 0.65rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
-        color: #9a7340;
-    }
-    .cosine-dot {
-        width: 6px; height: 6px; border-radius: 50%; background: #c9a96e;
-        animation: pulse 2s ease-in-out infinite;
-    }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-
-    /* ── Fade-in animation ── */
-    @keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
-    .prop-card { animation: fadeUp 0.4s ease both; }
-</style>
+<link rel="stylesheet" href="{{ asset('css/suggestion.css') }}">
 
 <div class="sugg-root max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-10">
 
@@ -295,12 +8,22 @@
     <div class="sugg-header">
         <div class="sugg-header-eyebrow">
             <div class="sugg-header-eyebrow-line"></div>
-            <span>For you</span>
+            {{--
+                FIX: Show the strategy label passed from the controller
+                so the user understands HOW these were chosen.
+                e.g. "Personalised for you" / "Based on your browsing history"
+            --}}
+            <span>{{ $strategyLabel ?? 'For you' }}</span>
         </div>
         <h1>Your <em>Suggestions</em></h1>
         <p>Properties matched to your preferences using cosine similarity — the closer the match, the higher it ranks.</p>
 
-        @if(isset($properties))
+        {{--
+            FIX: $properties is now always a plain Collection (not a Paginator)
+            because personalized($prefs, $limit) returns a Collection.
+            So we use ->count() only — no ->total() needed.
+        --}}
+        @if(isset($properties) && $properties->count() > 0)
             <div class="sugg-header-meta">
                 <div class="sugg-header-count">{{ $properties->count() }}</div>
                 <div class="sugg-header-count-label">matched listings</div>
@@ -317,7 +40,7 @@
                 Cosine similarity ranked
             </div>
             <span style="font-size:0.8rem; font-weight:300; color:#8c8070;">
-                Showing {{ $properties->count() }} personalised results
+                Showing {{ $properties->count() }} personalised result{{ $properties->count() === 1 ? '' : 's' }}
             </span>
         </div>
         <div style="display:flex; align-items:center; gap:0.75rem;">
@@ -341,7 +64,7 @@
             @foreach($properties as $i => $property)
                 <div class="prop-card" style="animation-delay: {{ $i * 0.06 }}s">
 
-                    {{-- Image --}}
+                    {{-- ── Image ── --}}
                     <div class="prop-img">
                         @if($property->image)
                             <img src="{{ asset('images/' . $property->image) }}" alt="{{ $property->title }}">
@@ -357,15 +80,23 @@
                         <span class="prop-badge prop-badge-purpose">{{ ucfirst($property->purpose) }}</span>
                         <span class="prop-badge-type">{{ ucfirst($property->type) }}</span>
 
-                        {{-- Cosine score bar at bottom of image --}}
-                        @if(isset($property->similarity_score))
+                        {{--
+                            FIX: isset() returns false for 0.0 (falsy), so use !== null check.
+                            Also cap at 100% in case the service returns a score slightly > 1.
+                        --}}
+                        @php
+                            $score        = $property->similarity_score ?? null;
+                            $scorePercent = $score !== null ? min(100, (int) round($score * 100)) : null;
+                        @endphp
+
+                        @if($scorePercent !== null)
                             <div class="prop-score-bar">
-                                <div class="prop-score-fill" style="width: {{ round($property->similarity_score * 100) }}%"></div>
+                                <div class="prop-score-fill" style="width: {{ $scorePercent }}%"></div>
                             </div>
                         @endif
                     </div>
 
-                    {{-- Body --}}
+                    {{-- ── Body ── --}}
                     <div class="prop-body">
                         <div class="prop-title">{{ $property->title }}</div>
 
@@ -411,7 +142,10 @@
                         <div class="prop-footer">
                             <div class="prop-price">
                                 Rs {{ number_format($property->price) }}
-                                <span>{{ ucfirst($property->category ?? '') }}</span>
+                                {{-- FIX: guard against null category with @if --}}
+                                @if($property->category)
+                                    <span>{{ ucfirst($property->category) }}</span>
+                                @endif
                             </div>
                             <a href="{{ route('buyer.properties.show', $property->id) }}" class="prop-btn">
                                 View
@@ -420,8 +154,22 @@
                                 </svg>
                             </a>
                         </div>
-                    </div>
 
+                        {{--
+                            NEW: Match percentage pill in the card body.
+                            Only shown when the cosine service attaches similarity_score
+                            to the model (e.g. after rerank() is called with a query).
+                        --}}
+                        @if($scorePercent !== null)
+                            <div class="prop-match-pill">
+                                <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                {{ $scorePercent }}% match
+                            </div>
+                        @endif
+
+                    </div>
                 </div>
             @endforeach
 
@@ -475,13 +223,34 @@
 
     </div>
 
-    {{-- ── PAGINATION ── --}}
-    @if(isset($properties) && $properties instanceof \Illuminate\Pagination\AbstractPaginator && $properties->hasPages())
-        <div style="margin-top: 3rem;">
-            {{ $properties->links() }}
-        </div>
-    @endif
+    {{--
+        PAGINATION REMOVED:
+        personalized($preferences, $limit) returns a plain Collection, not a
+        LengthAwarePaginator. The limit is 12, so there is nothing to paginate.
+        If you later switch the service to return a Paginator, add it back.
+    --}}
 
 </div>
+
+{{--
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ADD TO suggestion.css
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+.prop-match-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-top: 0.65rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: #9a7340;
+    background: #fdf6ec;
+    border: 1px solid #f0e0c0;
+    border-radius: 20px;
+    padding: 0.25rem 0.6rem;
+}
+--}}
 
 </x-app-layout>
