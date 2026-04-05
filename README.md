@@ -170,4 +170,4 @@ For support, email rajaramsilwal819@gmail.com or open an issue on GitHub.
 
 ---
 
-Made with ❤️ by the Real Estate Team
+Made with ❤️ by the Rajaram Silwal
