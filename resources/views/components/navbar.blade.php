@@ -1,365 +1,291 @@
-@php
-    if (!function_exists('activeClass')) {
-        function activeClass($condition, $type = 'default')
-        {
-            $classes = [
-                'default' => $condition
-                    ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
-                    : 'text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400',
+<link rel="stylesheet" href="{{ asset('css/navbar.css') }}">
+<nav x-data="{ open: false }" id="mainNav"
+    class="nav-root sticky top-0 z-50 border-b border-gray-100 transition-all duration-300" style="background:#faf7f2;">
 
-                'mobile' => $condition
-                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-l-4 border-blue-600'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-            ];
-
-            return $classes[$type];
-        }
-    }
-@endphp
-
-<!-- NAVBAR COMPONENT -->
-<nav x-data="navbar()" x-init="init" x-cloak :class="{
-        '-translate-y-full': !visible && !mobileOpen,
-        'shadow-lg backdrop-blur-md bg-white/90 dark:bg-gray-900/90': scrolled,
-     }" class="fixed top-0 left-0 w-full z-50 transition-all duration-300 transform bg-white dark:bg-gray-900">
-
-    <!-- PROGRESS BAR (optional) -->
-    <div class="absolute bottom-0 left-0 w-full h-0.5 bg-gray-200 dark:bg-gray-700">
-        <div x-bind:style="'width: ' + scrollProgress + '%'" class="h-full bg-blue-600 transition-all duration-150">
-        </div>
-    </div>
-
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12">
         <div class="flex items-center justify-between h-16">
 
-            <!-- LEFT SECTION: LOGO + MOBILE MENU BUTTON -->
-            <div class="flex items-center gap-4">
-                <!-- Mobile menu button -->
-                <button @click="mobileOpen = !mobileOpen" type="button"
-                    class="inline-flex items-center justify-center p-2 rounded-md text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 md:hidden transition-colors"
-                    aria-controls="mobile-menu" :aria-expanded="mobileOpen">
-                    <span class="sr-only">Open main menu</span>
-                    <!-- Icon when menu is closed -->
-                    <svg x-show="!mobileOpen" class="block h-6 w-6" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                    <!-- Icon when menu is open -->
-                    <svg x-show="mobileOpen" class="block h-6 w-6" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-
-                <!-- LOGO -->
-                <a href="{{ route('home') }}" class="flex items-center space-x-2">
-                    <div
-                        class="w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                        <span class="text-white font-bold text-xl">RE</span>
-                    </div>
-                    <span class="text-xl font-bold text-gray-900 dark:text-white hidden sm:block">RealEstate</span>
+            {{-- ── BRAND ── --}}
+            <div class="flex items-center gap-6 lg:gap-10">
+                <a href="{{ route('dashboard') }}" class="nav-brand">
+                    Real<span>Estate</span>
                 </a>
+
+                {{-- ── DESKTOP LINKS ── --}}
+                @auth
+                    @php $user = auth()->user(); @endphp
+                    <nav class="hidden md:flex items-center">
+
+                        @if($user->isBuyer())
+                            <div class="nav-divider"></div>
+                            <a href="{{ route('buyer.dashboard') }}"
+                                class="nav-link {{ request()->routeIs('buyer.dashboard') ? 'active' : '' }}">
+                                Dashboard
+                            </a>
+                            <a href="{{ route('buyer.properties') }}"
+                                class="nav-link {{ request()->routeIs('buyer.properties*') ? 'active' : '' }}">
+                                Browse
+                            </a>
+                            <a href="{{ route('buyer.suggestions') }}"
+                                class="nav-link {{ request()->routeIs('buyer.suggestions') ? 'active' : '' }}">
+                                Suggestions
+                            </a>
+                        @endif
+
+                        @if($user->isSeller())
+                            <div class="nav-divider"></div>
+                            <a href="{{ route('seller.dashboard') }}"
+                                class="nav-link {{ request()->routeIs('seller.dashboard') ? 'active' : '' }}">
+                                Dashboard
+                            </a>
+                            <a href="{{ route('seller.properties.create') }}"
+                                class="nav-link {{ request()->routeIs('seller.properties.create') ? 'active' : '' }}">
+                                Add Property
+                            </a>
+                            <a href="{{ route('seller.properties.index') }}"
+                                class="nav-link {{ request()->routeIs('seller.properties.index') ? 'active' : '' }}">
+                                My Listings
+                            </a>
+                        @endif
+
+                        @if($user->isAdmin())
+                            <div class="nav-divider"></div>
+                            <a href="{{ route('admin.dashboard') }}"
+                                class="nav-link {{ request()->routeIs('admin.*') ? 'active' : '' }}">
+                                Admin
+                            </a>
+                        @endif
+
+                    </nav>
+                @else
+                    {{-- Guest links --}}
+                    <nav class="hidden md:flex items-center">
+                        <div class="nav-divider"></div>
+                        <a href="{{ url('/properties') }}"
+                            class="nav-link {{ request()->is('properties*') ? 'active' : '' }}">
+                            Properties
+                        </a>
+                    </nav>
+                @endauth
             </div>
 
-            <!-- DESKTOP MENU -->
-            <div class="hidden md:flex items-center space-x-8">
-                <a href="{{ route('home') }}"
-                    class="inline-flex items-center px-1 pt-1 text-sm font-medium transition-colors duration-200 {{ activeClass(request()->routeIs('home')) }}">
-                    Home
-                </a>
+            {{-- ── RIGHT: AUTH ACTIONS ── --}}
+            <div class="hidden md:flex items-center gap-3">
 
-                <a href="{{ route('properties.list', ['purpose' => 'buy']) }}"
-                    class="inline-flex items-center px-1 pt-1 text-sm font-medium transition-colors duration-200 {{ activeClass(request()->routeIs('properties.list') && request('purpose') === 'buy') }}">
-                    Buy
-                </a>
+                @auth
+                    @php $user = auth()->user(); @endphp
+                    <x-dropdown align="right" width="56">
+                        <x-slot name="trigger">
+                            <button class="user-trigger">
+                                <span class="user-avatar">
+                                    
+                                    {{ strtoupper(substr(Auth::user()->name ?? Auth::user()->email, 0, 2)) }}
 
-                <a href="{{ route('properties.list', ['purpose' => 'sell']) }}"
-                    class="inline-flex items-center px-1 pt-1 text-sm font-medium transition-colors duration-200 {{ activeClass(request()->routeIs('properties.list') && request('purpose') === 'sell') }}">
-                    Sell
-                </a>
+                                </span>
+                                <span class="user-trigger-label">
+                                    {{ Auth::user()->name ?? Str::before(Auth::user()->email, '@') }}
 
-                <a href="{{ route('properties.list') }}"
-                    class="inline-flex items-center px-1 pt-1 text-sm font-medium transition-colors duration-200 {{ activeClass(request()->routeIs('properties.list') && !request('purpose')) }}">
-                    Properties
-                </a>
-            </div>
-
-            <!-- RIGHT SECTION: SEARCH + AUTH + THEME TOGGLE -->
-            <div class="flex items-center gap-2 sm:gap-4">
-
-                <!-- SEARCH DROPDOWN (DESKTOP) -->
-                <div x-data="{ open: false }" @keydown.escape="open = false" class="relative hidden md:block">
-
-                    <button @click="open = !open" type="button"
-                        class="p-2 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                        :aria-expanded="open" aria-label="Search">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                    </button>
-
-                    <!-- Search dropdown panel -->
-                    <div x-show="open" x-transition:enter="transition ease-out duration-200"
-                        x-transition:enter-start="opacity-0 translate-y-1"
-                        x-transition:enter-end="opacity-100 translate-y-0"
-                        x-transition:leave="transition ease-in duration-150"
-                        x-transition:leave-start="opacity-100 translate-y-0"
-                        x-transition:leave-end="opacity-0 translate-y-1" @click.outside="open = false"
-                        class="absolute right-0 top-full mt-2 w-96 bg-white dark:bg-gray-800 rounded-xl shadow-xl ring-1 ring-black ring-opacity-5 overflow-hidden z-50">
-
-                        <form method="GET" action="{{ route('properties.list') }}" class="p-4">
-                            <div class="flex gap-2">
-                                <div class="flex-1 relative">
-                                    <input type="text" name="q" value="{{ request('q') }}"
-                                        placeholder="Search properties..."
-                                        class="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                    <svg class="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none"
-                                        stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                    </svg>
-                                </div>
-                            </div>
-
-                            <div class="mt-3 grid grid-cols-2 gap-2">
-                                <select name="type"
-                                    class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white">
-                                    <option value="">Property Type</option>
-                                    <option value="flat" {{ request('type') == 'flat' ? 'selected' : '' }}>Flat</option>
-                                    <option value="house" {{ request('type') == 'house' ? 'selected' : '' }}>House
-                                    </option>
-                                    <option value="land" {{ request('type') == 'land' ? 'selected' : '' }}>Land</option>
-                                </select>
-
-                                <select name="bedrooms"
-                                    class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white">
-                                    <option value="">Bedrooms</option>
-                                    <option value="1">1+</option>
-                                    <option value="2">2+</option>
-                                    <option value="3">3+</option>
-                                    <option value="4">4+</option>
-                                </select>
-                            </div>
-
-                            <div class="mt-3 flex gap-2">
-                                <button type="submit"
-                                    class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                                    Search
-                                </button>
-                                <button type="button" @click="open = false"
-                                    class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                                    Cancel
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- MOBILE SEARCH ICON -->
-                <a href="{{ route('properties.list') }}"
-                    class="md:hidden p-2 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                </a>
-
-                <!-- DARK MODE TOGGLE -->
-                <!-- <button @click="toggleDarkMode"
-                    class="p-2 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                    aria-label="Toggle dark mode">
-                    <svg x-show="!darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                    </svg>
-                    <svg x-show="darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707" />
-                    </svg>
-                </button> -->
-
-                <!-- AUTH SECTION -->
-                <div class="hidden md:flex items-center gap-4">
-                    @guest
-                        <a href="{{ route('login') }}"
-                            class="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                            Login
-                        </a>
-
-                        <a href="{{ route('register') }}"
-                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
-                            Register
-                        </a>
-                    @endguest
-
-                    @auth
-                        <div class="relative" x-data="{ open: false }">
-                            <button @click="open = !open"
-                                class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 focus:outline-none">
-                                <span>{{ auth()->user()->name }}</span>
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M19 9l-7 7-7-7" />
+                                </span>
+                                <svg class="user-trigger-chevron" xmlns="http://www.w3.org/2000/svg" width="13" height="13"
+                                    viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd"
+                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
                                 </svg>
                             </button>
+                        </x-slot>
 
-                            <!-- User dropdown -->
-                            <div x-show="open" @click.outside="open = false"
-                                class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl py-1 z-50">
+                        <x-slot name="content">
+                            <div class="nav-dropdown-panel">
 
-                                <a href="{{ route('dashboard') }}"
-                                    class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                    Dashboard
-                                </a>
+                                {{-- Head: email + role badge --}}
+                                <div class="dropdown-head">
+                                    <p class="dropdown-email">{{ Auth::user()->email }}</p>
+                                    <span class="dropdown-badge">
+                                        @if($user->isAdmin()) Admin
+                                        @elseif($user->isSeller()) Seller
+                                        @else Buyer
+                                        @endif
+                                    </span>
+                                </div>
 
-                                <a href="{{ route('profile') }}"
-                                    class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                    Profile
-                                </a>
+                                <div style="padding:0.375rem 0;">
+                                    <a href="{{ route('profile.edit') }}" class="dropdown-item">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                        </svg>
+                                        My Profile
+                                    </a>
 
-                                <form method="POST" action="{{ route('logout') }}">
-                                    @csrf
-                                    <button type="submit"
-                                        class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                        Logout
-                                    </button>
-                                </form>
+                                    {{-- Role-specific shortcut --}}
+                                    @if(auth()->user()->isBuyer())
+                                        <a href="{{ route('buyer.suggestions') }}" class="dropdown-item">
+                                            My Suggestions
+                                        </a>
+                                    @endif
+
+                                    @if(auth()->user()->isSeller())
+                                        <a href="{{ route('seller.properties.index') }}" class="dropdown-item">
+                                            My Listings
+                                        </a>
+                                    @endif
+
+                                    <div class="dropdown-sep"></div>
+
+                                    <form method="POST" action="{{ route('logout') }}">
+                                        @csrf
+                                        <button type="submit" class="dropdown-item" style="color:#b04040;">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none"
+                                                viewBox="0 0 24 24" stroke="#b04040" stroke-width="1.75">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                            </svg>
+                                            Sign Out
+                                        </button>
+                                    </form>
+                                </div>
+
                             </div>
-                        </div>
-                    @endauth
-                </div>
+                        </x-slot>
+                    </x-dropdown>
+
+                @else
+                    {{-- Guest: login + register --}}
+                    <a href="{{ route('login') }}" style="font-size:0.78rem; font-weight:600; letter-spacing:0.07em; text-transform:uppercase;
+                                          color:#4a4038; text-decoration:none; padding:0.4rem 0; border-bottom:1.5px solid transparent;
+                                          transition:color 0.2s ease, border-color 0.2s ease;"
+                        onmouseover="this.style.color='#c9a96e'; this.style.borderColor='#c9a96e'"
+                        onmouseout="this.style.color='#4a4038'; this.style.borderColor='transparent'">
+                        Sign In
+                    </a>
+                    <a href="{{ route('register') }}" style="font-size:0.78rem; font-weight:600; letter-spacing:0.07em; text-transform:uppercase;
+                                          padding:0.5rem 1.25rem; background:#c9a96e; color:#0f0f0f;
+                                          border-radius:3px; text-decoration:none; transition:background 0.2s ease;"
+                        onmouseover="this.style.background='#b5924f'" onmouseout="this.style.background='#c9a96e'">
+                        Get Started
+                    </a>
+                @endauth
+
             </div>
+
+            {{-- ── HAMBURGER ── --}}
+            <button @click="open = !open" class="hamburger-btn md:hidden" aria-label="Toggle menu">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path :class="{ 'hidden': open, 'inline-flex': !open }" stroke-linecap="round"
+                        stroke-linejoin="round" stroke-width="1.75" d="M4 6h16M4 12h16M4 18h16" />
+                    <path :class="{ 'hidden': !open, 'inline-flex': open }" stroke-linecap="round"
+                        stroke-linejoin="round" stroke-width="1.75" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+
         </div>
     </div>
 
-    <!-- MOBILE MENU -->
-    <div x-show="mobileOpen" x-transition:enter="transition ease-out duration-200"
-        x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
-        x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0"
-        x-transition:leave-end="opacity-0 -translate-y-2"
-        class="md:hidden absolute top-16 inset-x-0 bg-white dark:bg-gray-900 shadow-lg border-t border-gray-200 dark:border-gray-800"
-        id="mobile-menu">
+    {{-- ── MOBILE MENU ── --}}
+    <div :class="{ 'block': open, 'hidden': !open }" class="hidden md:hidden mobile-panel">
 
-        <div class="px-4 py-2 space-y-1">
-            <a href="{{ route('home') }}"
-                class="block px-3 py-2 rounded-md text-base font-medium {{ activeClass(request()->routeIs('home'), 'mobile') }}">
-                Home
-            </a>
+        @auth
+            @php $user = auth()->user(); @endphp
 
-            <a href="{{ route('properties.list', ['purpose' => 'buy']) }}"
-                class="block px-3 py-2 rounded-md text-base font-medium {{ activeClass(request()->routeIs('properties.list') && request('purpose') === 'buy', 'mobile') }}">
-                Buy
-            </a>
+            @if($user->isBuyer())
+                <p class="mobile-section-label">Buyer</p>
+                <a href="{{ route('buyer.dashboard') }}"
+                    class="mobile-link {{ request()->routeIs('buyer.dashboard') ? 'active' : '' }}">
+                    <span class="dot"></span> Dashboard
+                </a>
+                <a href="{{ route('buyer.properties') }}"
+                    class="mobile-link {{ request()->routeIs('buyer.properties*') ? 'active' : '' }}">
+                    <span class="dot"></span> Browse Properties
+                </a>
+                <a href="{{ route('buyer.suggestions') }}"
+                    class="mobile-link {{ request()->routeIs('buyer.suggestions') ? 'active' : '' }}">
+                    <span class="dot"></span> Suggestions
+                </a>
+            @endif
 
-            <a href="{{ route('properties.list', ['purpose' => 'sell']) }}"
-                class="block px-3 py-2 rounded-md text-base font-medium {{ activeClass(request()->routeIs('properties.list') && request('purpose') === 'sell', 'mobile') }}">
-                Sell
-            </a>
+            @if($user->isSeller())
+                <p class="mobile-section-label">Seller</p>
+                <a href="{{ route('seller.dashboard') }}"
+                    class="mobile-link {{ request()->routeIs('seller.dashboard') ? 'active' : '' }}">
+                    <span class="dot"></span> Dashboard
+                </a>
+                <a href="{{ route('seller.properties.create') }}"
+                    class="mobile-link {{ request()->routeIs('seller.properties.create') ? 'active' : '' }}">
+                    <span class="dot"></span> Add Property
+                </a>
+                <a href="{{ route('seller.properties.index') }}"
+                    class="mobile-link {{ request()->routeIs('seller.properties.index') ? 'active' : '' }}">
+                    <span class="dot"></span> My Listings
+                </a>
+            @endif
 
-            <a href="{{ route('properties.list') }}"
-                class="block px-3 py-2 rounded-md text-base font-medium {{ activeClass(request()->routeIs('properties.list') && !request('purpose'), 'mobile') }}">
-                Properties
-            </a>
-        </div>
+            @if($user->isAdmin())
+                <p class="mobile-section-label">Admin</p>
+                <a href="{{ route('admin.dashboard') }}"
+                    class="mobile-link {{ request()->routeIs('admin.*') ? 'active' : '' }}">
+                    <span class="dot"></span> Admin Dashboard
+                </a>
+            @endif
 
-        <!-- Mobile auth section -->
-        <div class="border-t border-gray-200 dark:border-gray-800 px-4 py-4">
-            @guest
-                <div class="space-y-2">
-                    <a href="{{ route('login') }}"
-                        class="block w-full text-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
-                        Login
-                    </a>
-                    <a href="{{ route('register') }}"
-                        class="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                        Register
-                    </a>
+            <div class="mobile-footer">
+                <div class="mobile-user-info">
+                    <span class="mobile-avatar">
+                        {{ strtoupper(substr(Auth::user()->name ?? Auth::user()->email, 0, 2)) }}
+                    </span>
+                    <span class="mobile-email-text">{{ Auth::user()->email }}</span>
                 </div>
-            @else
-            <div class="space-y-3">
-                <div class="font-medium text-gray-900 dark:text-white">{{ auth()->user()->name }}</div>
-                <div class="space-y-1">
-                    <a href="{{ route('dashboard') }}"
-                        class="block text-gray-700 dark:text-gray-300 hover:text-blue-600">Dashboard</a>
-                    <a href="{{ route('profile') }}"
-                        class="block text-gray-700 dark:text-gray-300 hover:text-blue-600">Profile</a>
-                    <form method="POST" action="{{ route('logout') }}">
-                        @csrf
-                        <button class="text-red-600 hover:text-red-800">Logout</button>
-                    </form>
-                </div>
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit"
+                        style="font-size:0.72rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
+                                               color:#b04040; background:none; border:none; cursor:pointer; padding:0.25rem 0;">
+                        Sign Out
+                    </button>
+                </form>
             </div>
-            @endauth
+
+        @else
+        {{-- Guest mobile links --}}
+        <div style="padding:1rem 1.25rem; display:flex; flex-direction:column; gap:0.75rem;">
+            <a href="{{ route('login') }}" style="font-size:0.8125rem; font-weight:500; color:#3a3028; text-decoration:none; padding:0.6rem 0;
+                          border-bottom:1px solid #ede8df;">
+                Sign In
+            </a>
+            <a href="{{ route('register') }}" style="font-size:0.8125rem; font-weight:600; letter-spacing:0.06em; text-transform:uppercase;
+                          color:#0f0f0f; background:#c9a96e; text-align:center; padding:0.75rem;
+                          border-radius:3px; text-decoration:none;">
+                Get Started
+            </a>
         </div>
+        @endguest
+
     </div>
+
 </nav>
 
-<!-- PAGE CONTENT WRAPPER -->
-<main class="pt-16">
-    {{ $slot ?? '' }}
-</main>
-
 <script>
-    function navbar() {
-        return {
-            visible: true,
-            scrolled: false,
-            mobileOpen: false,
-            darkMode: false,
-            lastScroll: 0,
-            scrollProgress: 0,
+    (function () {
+        const nav = document.getElementById('mainNav');
+        if (!nav) return;
 
-            init() {
-                // Check for saved dark mode preference
-                this.darkMode = localStorage.getItem('darkMode') === 'true' ||
-                    (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches);
-
-                if (this.darkMode) {
-                    document.documentElement.classList.add('dark');
-                }
-
-                // Throttled scroll handler
-                let ticking = false;
-                window.addEventListener('scroll', () => {
-                    if (!ticking) {
-                        window.requestAnimationFrame(() => {
-                            this.handleScroll();
-                            ticking = false;
-                        });
-                        ticking = true;
-                    }
-                });
-            },
-
-            handleScroll() {
-                const currentScroll = window.scrollY;
-                this.scrolled = currentScroll > 20;
-                this.visible = currentScroll < this.lastScroll || currentScroll < 100;
-                this.lastScroll = currentScroll;
-
-                // Calculate scroll progress
-                const winHeight = document.documentElement.scrollHeight - window.innerHeight;
-                this.scrollProgress = (currentScroll / winHeight) * 100;
-            },
-
-            toggleDarkMode() {
-                this.darkMode = !this.darkMode;
-                if (this.darkMode) {
-                    document.documentElement.classList.add('dark');
-                } else {
-                    document.documentElement.classList.remove('dark');
-                }
-                localStorage.setItem('darkMode', this.darkMode);
-            }
+        // Check if the first child of <main> contains the hero slider
+        function hasHero() {
+            const main = document.querySelector('main');
+            return main && main.firstElementChild && main.firstElementChild.querySelector('#heroSlider');
         }
-    }
-</script>
 
-<style>
-    [x-cloak] {
-        display: none !important;
-    }
-</style>
+        const heroMode = hasHero();
+
+        function update() {
+            const scrolled = window.scrollY > 60;
+            nav.classList.toggle('scrolled', scrolled || !heroMode);
+            nav.classList.toggle('hero-mode', heroMode && !scrolled);
+        }
+
+        if (heroMode) {
+            window.addEventListener('scroll', update, { passive: true });
+        }
+        update();
+    })();
+</script>

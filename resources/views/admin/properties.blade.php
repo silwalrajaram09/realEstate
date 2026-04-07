@@ -8,9 +8,18 @@
     <div class="p-6">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-xl font-semibold text-gray-900">All Properties</h2>
-            <div class="text-sm text-gray-500">
-                Total: {{ $properties->total() }} properties
-            </div>
+            <form method="GET" action="{{ route('admin.properties') }}" class="flex items-center gap-2">
+                <label for="status" class="text-sm text-gray-600">Status</label>
+                <select id="status" name="status" onchange="this.form.submit()" class="text-sm border border-gray-300 rounded-lg px-2 py-1">
+                    <option value="">All</option>
+                    <option value="pending" @selected(request('status') === 'pending')>Pending</option>
+                    <option value="approved" @selected(request('status') === 'approved')>Approved</option>
+                    <option value="rejected" @selected(request('status') === 'rejected')>Rejected</option>
+                </select>
+                <div class="text-sm text-gray-500 ml-2">
+                    Total: {{ $properties->total() }}
+                </div>
+            </form>
         </div>
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -32,7 +41,7 @@
                             <tr class="hover:bg-gray-50">
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
-                                        <div class="h-12 w-12 rounded-lg bg-gray-200 overflow-hidden flex-shrink-0">
+                                        <div class="h-12 w-12 rounded-lg bg-gray-200 overflow-hidden shrink-0">
                                             @if($property->image)
                                                 <img src="{{ asset('images/' . $property->image) }}"
                                                     class="h-full w-full object-cover">
@@ -70,6 +79,10 @@
                                     {{ $property->created_at->format('M d, Y') }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <form action="{{ route('admin.properties.featured-toggle', $property) }}" method="POST" class="inline">
+                                        @csrf @method('PATCH')
+                                        <button type="submit" class="text-amber-600 mr-3">{{ $property->is_featured ? 'Unfeature' : 'Feature' }}</button>
+                                    </form>
                                     @if($property->status === 'pending')
                                         <form action="{{ route('admin.properties.approve', $property) }}" method="POST"
                                             class="inline">
@@ -83,10 +96,16 @@
                                             class="inline">
                                             @csrf
                                             @method('PATCH')
+                                            <input type="hidden" name="reason" value="Rejected by admin review. Please review your listing details and resubmit.">
                                             <button type="submit" class="text-red-600 hover:text-red-900"
                                                 onclick="return confirm('Reject this property?')">
                                                 Reject
                                             </button>
+                                        </form>
+                                        <form action="{{ route('admin.properties.request-changes', $property) }}" method="POST" class="inline">
+                                            @csrf @method('PATCH')
+                                            <input type="hidden" name="reason" value="Please update listing details and resubmit for approval.">
+                                            <button type="submit" class="text-blue-600 ml-2">Request Changes</button>
                                         </form>
                                     @else
                                         <span class="text-gray-400">-</span>
@@ -106,7 +125,7 @@
 
             @if($properties->hasPages())
                 <div class="px-6 py-4 border-t border-gray-200">
-                    {{ $properties->links() }}
+                    {{ $properties->appends(request()->query())->links() }}
                 </div>
             @endif
         </div>

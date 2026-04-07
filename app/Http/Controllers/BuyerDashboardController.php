@@ -136,7 +136,7 @@ class BuyerDashboardController extends Controller
 
         if ($favorites->isNotEmpty()) {
             $preferences = $this->extractPreferences($favorites);
-            $recommendations = $this->recommendationService->personalized($preferences, 6);
+            $recommendations = $this->recommendationService->personalized($preferences, 6, $user->id);
             if ($recommendations->isNotEmpty()) {
                 return $recommendations;
             }
@@ -152,7 +152,7 @@ class BuyerDashboardController extends Controller
 
         if ($recentViews->isNotEmpty()) {
             $preferences = $this->extractPreferences($recentViews);
-            $recommendations = $this->recommendationService->personalized($preferences, 6);
+            $recommendations = $this->recommendationService->personalized($preferences, 6, $user->id);
             if ($recommendations->isNotEmpty()) {
                 return $recommendations;
             }

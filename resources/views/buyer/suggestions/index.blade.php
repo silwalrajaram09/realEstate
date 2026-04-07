@@ -1,100 +1,153 @@
 <x-app-layout>
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <!-- Header -->
-            <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-lg shadow-lg mb-8 p-6 text-white">
-                <h1 class="text-2xl font-bold mb-2">Property Suggestions</h1>
-                <p class="text-blue-100">Curated properties based on your preferences and search history.</p>
+
+<link rel="stylesheet" href="{{ asset('css/suggestion.css') }}">
+
+<div class="sugg-root max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-10">
+
+    {{-- ── HEADER ── --}}
+    <div class="sugg-header">
+        <div class="sugg-header-eyebrow">
+            <div class="sugg-header-eyebrow-line"></div>
+            {{--
+                FIX: Show the strategy label passed from the controller
+                so the user understands HOW these were chosen.
+                e.g. "Personalised for you" / "Based on your browsing history"
+            --}}
+            <span>{{ $strategyLabel ?? 'For you' }}</span>
+        </div>
+        <h1>Your <em>Suggestions</em></h1>
+        <p>Properties matched to your preferences using cosine similarity — the closer the match, the higher it ranks.</p>
+
+        {{--
+            FIX: $properties is now always a plain Collection (not a Paginator)
+            because personalized($prefs, $limit) returns a Collection.
+            So we use ->count() only — no ->total() needed.
+        --}}
+        @php
+            $rankedProperties = collect($properties ?? [])->filter(function ($p) {
+                return ($p->recommendation_confidence ?? 'medium') !== 'low';
+            })->values();
+        @endphp
+        @if($rankedProperties->count() > 0)
+            <div class="sugg-header-meta">
+                <div class="sugg-header-count">{{ $rankedProperties->count() }}</div>
+                <div class="sugg-header-count-label">matched listings</div>
             </div>
+        @endif
+    </div>
 
-            @if(isset($properties) && $properties->count() > 0)
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    @foreach($properties as $property)
-                        <div
-                            class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300">
-                            {{-- Image --}}
-                            <div class="relative h-48 bg-gray-200">
-                                @if($property->image)
-                                    <img src="{{ asset('images/' . $property->image) }}" alt="{{ $property->title }}"
-                                        class="w-full h-full object-cover">
-                                @else
-                                    <div class="w-full h-full flex items-center justify-center">
-                                        <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                                        </svg>
-                                    </div>
-                                @endif
-                                <div class="absolute top-3 left-3">
-                                    <span class="px-3 py-1 text-xs font-semibold rounded-full bg-blue-600 text-white">
-                                        {{ ucfirst($property->purpose) }}
-                                    </span>
-                                </div>
-                                <div class="absolute top-3 right-3">
-                                    <span class="px-3 py-1 text-xs font-medium bg-white/90 rounded-full text-gray-700">
-                                        {{ ucfirst($property->type) }}
-                                    </span>
-                                </div>
-                            </div>
-
-                            {{-- Content --}}
-                            <div class="p-5">
-                                <h3 class="text-lg font-semibold text-gray-900">{{ $property->title }}</h3>
-                                <div class="flex items-center gap-1 text-gray-500 mt-2">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                    </svg>
-                                    <span class="text-sm">{{ $property->location }}</span>
-                                </div>
-
-                                <div class="flex items-center gap-4 mt-3 text-gray-600 text-sm">
-                                    @if($property->bedrooms)
-                                        <span>{{ $property->bedrooms }} Bed</span>
-                                    @endif
-                                    @if($property->bathrooms)
-                                        <span>{{ $property->bathrooms }} Bath</span>
-                                    @endif
-                                    <span>{{ $property->area }} sq.ft</span>
-                                </div>
-
-                                <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                                    <span class="text-xl font-bold text-blue-600">Rs
-                                        {{ number_format($property->price) }}</span>
-                                    <a href="{{ route('buyer.properties.show', $property->id) }}"
-                                        class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition">
-                                        View Details
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-
-                {{-- Only render links if paginator --}}
-                @if($properties instanceof \Illuminate\Pagination\AbstractPaginator)
-                    <div class="mt-8">
-                        {{ $properties->links() }}
-                    </div>
-                @endif
-
-                {{-- Empty State --}}
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-                    <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                        </svg>
-                    </div>
-                    <h3 class="text-xl font-semibold text-gray-900 mb-2">No Suggestions Yet</h3>
-                    <p class="text-gray-500 mb-6">Start browsing properties to get personalized suggestions based on your
-                        preferences.</p>
-                    <a href="{{ route('buyer.properties') }}"
-                        class="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition">
-                        Browse Properties
-                    </a>
-                </div>
-            @endif
+    {{-- ── TOOLBAR ── --}}
+    @if(isset($rankedProperties) && $rankedProperties->count() > 0)
+    <div class="sugg-toolbar">
+        <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+            <div class="cosine-badge">
+                <div class="cosine-dot"></div>
+                Cosine similarity ranked
+            </div>
+            <span style="font-size:0.8rem; font-weight:300; color:#8c8070;">
+                Showing {{ $rankedProperties->count() }} personalised result{{ $rankedProperties->count() === 1 ? '' : 's' }}
+            </span>
+        </div>
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+            <a href="{{ route('buyer.properties') }}"
+               style="font-size:0.72rem; font-weight:600; letter-spacing:0.08em; text-transform:uppercase;
+                      color:#8c8070; text-decoration:none; padding:0.45rem 0.875rem;
+                      border:1px solid #ede8df; border-radius:3px; background:#fff;
+                      transition: border-color 0.2s, color 0.2s;"
+               onmouseover="this.style.borderColor='#c9a96e';this.style.color='#9a7340'"
+               onmouseout="this.style.borderColor='#ede8df';this.style.color='#8c8070'">
+                Browse all
+            </a>
         </div>
     </div>
+    @endif
+
+    {{-- ── GRID ── --}}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+        @if(isset($rankedProperties) && $rankedProperties->count() > 0)
+            @foreach($rankedProperties as $i => $property)
+                 <x-property-card :property="$property" :showScore="true" />
+            @endforeach
+
+        @else
+            {{-- ── EMPTY STATE ── --}}
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="#c9a96e" stroke-width="1.25">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                    </svg>
+                </div>
+
+                <div class="empty-title">No Suggestions Yet</div>
+                <p class="empty-sub">
+                    The cosine similarity engine needs a signal from you. Browse or favourite a few properties and it will learn what to recommend.
+                </p>
+
+                <div class="empty-steps">
+                    <div class="empty-step">
+                        <div class="empty-step-num">1</div>
+                        <div class="empty-step-text">
+                            <strong>Browse properties</strong>
+                            View listings that interest you — each view is a signal.
+                        </div>
+                    </div>
+                    <div class="empty-step">
+                        <div class="empty-step-num">2</div>
+                        <div class="empty-step-text">
+                            <strong>Save favourites</strong>
+                            The algorithm weights your saved properties most heavily.
+                        </div>
+                    </div>
+                    <div class="empty-step">
+                        <div class="empty-step-num">3</div>
+                        <div class="empty-step-text">
+                            <strong>Get matched</strong>
+                            Cosine similarity finds listings closest to your preference vector.
+                        </div>
+                    </div>
+                </div>
+
+                <a href="{{ route('buyer.properties') }}" class="empty-cta">
+                    Start browsing
+                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </a>
+            </div>
+        @endif
+
+    </div>
+
+    {{--
+        PAGINATION REMOVED:
+        personalized($preferences, $limit) returns a plain Collection, not a
+        LengthAwarePaginator. The limit is 12, so there is nothing to paginate.
+        If you later switch the service to return a Paginator, add it back.
+    --}}
+
+</div>
+
+{{--
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ADD TO suggestion.css
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+.prop-match-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-top: 0.65rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: #9a7340;
+    background: #fdf6ec;
+    border: 1px solid #f0e0c0;
+    border-radius: 20px;
+    padding: 0.25rem 0.6rem;
+}
+--}}
+
 </x-app-layout>

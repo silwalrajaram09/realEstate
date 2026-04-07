@@ -1,136 +1,303 @@
 @props(['property', 'showScore' => false])
 
-<div
-    class="bg-gray-50 dark:bg-gray-700/50 rounded-lg overflow-hidden hover:shadow-md transition border border-gray-200 dark:border-gray-600 relative group">
+<style>
+    .pc-card {
+        background: #fff;
+        border: 1px solid #ede8df;
+        border-radius: 4px;
+        overflow: hidden;
+        position: relative;
+        transition: box-shadow 0.3s ease, transform 0.3s ease, border-color 0.3s ease;
+    }
+    .pc-card:hover {
+        box-shadow: 0 12px 36px rgba(0,0,0,0.09);
+        transform: translateY(-3px);
+        border-color: transparent;
+    }
+    .pc-img-wrap {
+        position: relative;
+        aspect-ratio: 4/3;
+        overflow: hidden;
+        background: #e8e0d4;
+    }
+    .pc-img-wrap img {
+        width: 100%; height: 100%;
+        object-fit: cover;
+        transition: transform 0.6s ease;
+    }
+    .pc-card:hover .pc-img-wrap img { transform: scale(1.05); }
+    .pc-img-overlay {
+        position: absolute; inset: 0;
+        background: linear-gradient(to top, rgba(15,15,15,0.4) 0%, transparent 55%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    .pc-card:hover .pc-img-overlay { opacity: 1; }
 
-    <!-- Match Score Badge (optional) -->
-    @if($showScore && isset($property->relevance_score))
-        <div class="absolute top-2 right-2 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full z-10 shadow-lg">
-            {{ round($property->relevance_score) }}% Match
-        </div>
-    @endif
+    .pc-badge {
+        font-size: 0.58rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        padding: 0.225rem 0.55rem;
+        border-radius: 2px;
+        display: inline-block;
+    }
+    .pc-badge-sale { background: #c9a96e; color: #0f0f0f; }
+    .pc-badge-rent { background: #0f0f0f; color: #c9a96e; border: 1px solid #c9a96e; }
+    .pc-badge-new  { background: rgba(255,255,255,0.92); color: #0f0f0f; }
 
-    <!-- Save to Favorites Button -->
-    <button onclick="toggleFavorite({{ $property->id }})"
-        class="absolute top-2 left-2 w-8 h-8 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-md hover:bg-gray-100 dark:hover:bg-gray-700 transition z-10 favorite-btn"
-        data-property-id="{{ $property->id }}">
-        <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd"
-                d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
-                clip-rule="evenodd" />
+    .pc-score {
+        position: absolute;
+        top: 0.75rem;
+        right: 0.75rem;
+        background: #c9a96e;
+        color: #0f0f0f;
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        padding: 0.25rem 0.625rem;
+        border-radius: 2px;
+        font-family: 'Outfit', sans-serif;
+    }
+
+    .pc-fav {
+        position: absolute;
+        top: 0.75rem;
+        left: 0.75rem;
+        width: 2rem; height: 2rem;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.9);
+        border: none;
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: background 0.2s ease;
+        z-index: 2;
+        opacity: 0;
+        transition: opacity 0.25s ease, background 0.2s ease;
+    }
+    .pc-card:hover .pc-fav { opacity: 1; }
+    .pc-fav:hover { background: #fff; }
+    .pc-fav svg { transition: stroke 0.2s ease; }
+    .pc-fav:hover svg { stroke: #c0392b; }
+
+    .pc-price {
+        position: absolute;
+        bottom: 0.75rem;
+        right: 0.75rem;
+        background: rgba(250,247,242,0.96);
+        backdrop-filter: blur(4px);
+        border-radius: 3px;
+        padding: 0.25rem 0.75rem;
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 1.15rem;
+        font-weight: 600;
+        color: #0f0f0f;
+        line-height: 1.25;
+    }
+    .pc-price .pm {
+        font-family: 'Outfit', sans-serif;
+        font-size: 0.6rem;
+        color: #8c8070;
+        font-weight: 400;
+        display: block;
+        text-align: right;
+    }
+
+    .pc-body { padding: 1.125rem 1.25rem 1.375rem; }
+
+    .pc-title {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #0f0f0f;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        text-decoration: none;
+        display: block;
+        transition: color 0.2s ease;
+        line-height: 1.2;
+    }
+    .pc-title:hover { color: #c9a96e; }
+
+    .pc-location {
+        display: flex; align-items: center; gap: 0.3rem;
+        font-size: 0.775rem; font-weight: 300; color: #8c8070;
+        margin-top: 0.25rem;
+        overflow: hidden; white-space: nowrap;
+    }
+    .pc-location span { overflow: hidden; text-overflow: ellipsis; }
+
+    .pc-specs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        border: 1px solid #f0ece4;
+        border-radius: 3px;
+        overflow: hidden;
+        margin-top: 0.875rem;
+    }
+    .pc-spec {
+        text-align: center;
+        padding: 0.5rem 0.25rem;
+        border-right: 1px solid #f0ece4;
+    }
+    .pc-spec:last-child { border-right: none; }
+    .pc-spec-label {
+        font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase;
+        color: #b0a090; font-weight: 500; display: block;
+    }
+    .pc-spec-value {
+        font-size: 0.875rem; font-weight: 600; color: #0f0f0f; display: block; margin-top: 0.1rem;
+    }
+
+    .pc-features {
+        display: flex; flex-wrap: wrap; gap: 0.3rem;
+        margin-top: 0.75rem;
+    }
+    .pc-feature-tag {
+        font-size: 0.65rem; font-weight: 400; color: #6b5e52;
+        background: #f4ede3; padding: 0.2rem 0.5rem; border-radius: 2px;
+    }
+
+    .pc-cta {
+        display: block;
+        text-align: center;
+        margin-top: 1rem;
+        padding: 0.625rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #0f0f0f;
+        background: #faf7f2;
+        border: 1px solid #ddd5c8;
+        border-radius: 3px;
+        text-decoration: none;
+        transition: background 0.2s ease, border-color 0.2s ease;
+    }
+    .pc-cta:hover { background: #c9a96e; border-color: #c9a96e; }
+</style>
+
+<div class="pc-card">
+
+    {{-- Fav button --}}
+    <button class="pc-fav favorite-btn" data-property-id="{{ $property->id }}"
+            onclick="toggleFavorite({{ $property->id }})" aria-label="Save">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#3a3028" stroke-width="1.75">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
         </svg>
     </button>
 
-    <!-- Property Image -->
-    <div class="h-48 bg-gray-200 dark:bg-gray-600 overflow-hidden">
+    {{-- Match score --}}
+    @if($showScore && isset($property->similarity_score))
+        <div class="pc-score">{{ round($property->similarity_score * 100) }}% Match</div>
+    @endif
 
-        <img src="{{ $property->image_url }}" alt="{{ $property->title }}"
-            class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+    {{-- Image --}}
+    <div class="pc-img-wrap">
+        <img src="{{ $property->image_url }}" alt="{{ $property->title }}" loading="lazy">
+        <div class="pc-img-overlay"></div>
 
+        {{-- Badges --}}
+        <div style="position:absolute; bottom:0.75rem; left:0.75rem; display:flex; gap:0.3rem; flex-wrap:wrap; z-index:2;">
+            <span class="pc-badge {{ $property->purpose === 'buy' || $property->purpose === 'sale' ? 'pc-badge-sale' : 'pc-badge-rent' }}">
+                {{ $property->purpose === 'buy' || $property->purpose === 'sale' ? 'For Sale' : 'For Rent' }}
+            </span>
+            @if(isset($property->created_at) && $property->created_at->diffInDays(now()) < 7)
+                <span class="pc-badge pc-badge-new">New</span>
+            @endif
+        </div>
+
+        {{-- Price --}}
+        <div class="pc-price">
+            Rs {{ number_format($property->price) }}
+            @if($property->purpose === 'rent')
+                <span class="pm">/month</span>
+            @endif
+        </div>
     </div>
 
-    <!-- Property Details -->
-    <div class="p-4">
-        <h3 class="font-semibold text-gray-900 dark:text-white truncate">{{ $property->title }}</h3>
+    {{-- Body --}}
+    <div class="pc-body">
+        <a href="{{ route('buyer.properties.show', [$property->id, $property->slug ?? null]) }}" class="pc-title">
+            {{ $property->title }}
+        </a>
 
-        <!-- Location -->
-        <div class="flex items-center mt-1 text-sm text-gray-500 dark:text-gray-400">
-            <svg class="w-4 h-4 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+        <div class="pc-location">
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" style="flex-shrink:0;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
             </svg>
-            <span class="truncate">{{ $property->location }}</span>
+            <span>{{ $property->location }}</span>
         </div>
 
-        <!-- Features -->
-        <div class="mt-3 flex flex-wrap gap-1">
-            @if($property->bedrooms)
-                <span
-                    class="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs rounded">
-                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                    </svg>
-                    {{ $property->bedrooms }} BHK
-                </span>
-            @endif
-
-            @if($property->bathrooms)
-                <span
-                    class="inline-flex items-center px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded">
-                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                    </svg>
-                    {{ $property->bathrooms }}
-                </span>
-            @endif
-
-            @if($property->area)
-                <span
-                    class="inline-flex items-center px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-xs rounded">
-                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                    </svg>
-                    {{ $property->area }} sq.ft
-                </span>
-            @endif
-        </div>
-
-        <!-- Price and Purpose -->
-        <div class="flex items-center justify-between mt-4">
-            <div>
-                <span class="text-lg font-bold text-blue-600 dark:text-blue-400">
-                    Rs {{ number_format($property->price) }}
-                </span>
-                @if($property->purpose === 'rent')
-                    <span class="text-xs text-gray-500 dark:text-gray-400">/month</span>
+        {{-- Specs --}}
+        @if($property->bedrooms || $property->bathrooms || $property->area)
+            <div class="pc-specs">
+                @if($property->bedrooms)
+                    <div class="pc-spec">
+                        <span class="pc-spec-label">Beds</span>
+                        <span class="pc-spec-value">{{ $property->bedrooms }}</span>
+                    </div>
+                @endif
+                @if($property->bathrooms)
+                    <div class="pc-spec">
+                        <span class="pc-spec-label">Baths</span>
+                        <span class="pc-spec-value">{{ $property->bathrooms }}</span>
+                    </div>
+                @endif
+                @if($property->area)
+                    <div class="pc-spec">
+                        <span class="pc-spec-label">Area</span>
+                        <span class="pc-spec-value" style="font-size:0.775rem;">{{ number_format($property->area) }}<span style="font-size:0.58rem; color:#8c8070;"> sqft</span></span>
+                    </div>
                 @endif
             </div>
-            <span class="px-2 py-1 text-xs font-medium rounded-full
-                @if($property->purpose === 'buy')
-                    bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400
-                @else
-                    bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400
-                @endif">
-                {{ $property->purpose === 'buy' ? 'For Sale' : 'For Rent' }}
-            </span>
-        </div>
+        @endif
 
-        <!-- View Details Button -->
-        <a href="{{ route('buyer.properties.show', $property->id) }}"
-            class="mt-4 block text-center w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition dark:bg-blue-700 dark:hover:bg-blue-600">
-            View Details
-        </a>
+        {{-- Feature tags --}}
+        @if(isset($property->features) && is_array($property->features) && count($property->features) > 0)
+            <div class="pc-features">
+                @foreach(array_slice($property->features, 0, 3) as $f)
+                    <span class="pc-feature-tag">{{ $f }}</span>
+                @endforeach
+                @if(count($property->features) > 3)
+                    <span class="pc-feature-tag">+{{ count($property->features) - 3 }}</span>
+                @endif
+            </div>
+        @endif
+
+        {{-- Recommendation reason (why this was shown) --}}
+        @if(isset($property->recommendation_reason))
+            <div style="margin-top:0.6rem; font-size:0.72rem; color:#8c8070; font-weight:400;">
+                {{ $property->recommendation_reason }}
+            </div>
+        @endif
+
+        <a href="{{ route('buyer.properties.show', [$property->id, $property->slug ?? null]) }}" class="pc-cta">View Details</a>
     </div>
 </div>
 
 <script>
-    function toggleFavorite(propertyId) {
-        // Add your favorite toggle logic here
-        fetch(`/buyer/favorites/${propertyId}/toggle`, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Content-Type': 'application/json'
+function toggleFavorite(propertyId) {
+    fetch(`/buyer/favorites/${propertyId}/toggle`, {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const svg = document.querySelector(`.favorite-btn[data-property-id="${propertyId}"] svg`);
+            if (data.is_favorite) {
+                svg.setAttribute('fill', '#c0392b');
+                svg.setAttribute('stroke', '#c0392b');
+            } else {
+                svg.setAttribute('fill', 'none');
+                svg.setAttribute('stroke', '#3a3028');
             }
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Toggle heart icon
-                    const btn = document.querySelector(`.favorite-btn[data-property-id="${propertyId}"] svg`);
-                    if (data.is_favorite) {
-                        btn.classList.add('text-red-500');
-                        btn.classList.remove('text-gray-400');
-                    } else {
-                        btn.classList.remove('text-red-500');
-                        btn.classList.add('text-gray-400');
-                    }
-                }
-            });
-    }
+        }
+    });
+}
 </script>

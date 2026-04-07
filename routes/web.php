@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Buyer\FavoriteController;
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\PropertyController;
@@ -8,14 +9,12 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\BuyerDashboardController;
 use App\Http\Controllers\SellerDashboardController;
 use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\EnquiryController;
 use App\Http\Controllers\buyer\BuyerPropertyController as BuyerPropertyController;
 use App\Http\Controllers\Seller\PropertyController as SellerPropertyController;
+//use App\Http\Controllers\Buyer\FavoriteController as BuyerFavoriteController;
 
-/*
-|--------------------------------------------------------------------------
-| Landing Page (Guests only)
-|--------------------------------------------------------------------------
-*/
+
 
 // Route::get('/', function () {
 //     return auth()->check()
@@ -40,22 +39,14 @@ Route::get('/', [HomeController::class, 'index'])->name('home');
 // Route::get('/properties/{property}', [PropertyController::class, 'show'])
 //     // ->name('properties.show');
 Route::get('/properties', [PropertyController::class, 'list'])->name('properties.list');
-Route::get('/properties/{property}', [PropertyController::class, 'show'])->name('properties.show');
+Route::get('/properties/{property}/{slug?}', [PropertyController::class, 'show'])->name('properties.show');
 
 
-/*
-|--------------------------------------------------------------------------
-| Authenticated Routes
-|--------------------------------------------------------------------------
-*/
+
 
 Route::middleware(['auth'])->group(function () {
 
-    /*
-    |--------------------------------------------------------------------------
-    | Profile Management
-    |--------------------------------------------------------------------------
-    */
+
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/', [ProfileController::class, 'edit'])->name('edit');
         Route::put('/', [ProfileController::class, 'update'])->name('update');
@@ -99,8 +90,18 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/properties/buy', [BuyerPropertyController::class, 'buy'])
                 ->name('properties.buy');
 
-            Route::get('/properties/{property}', [BuyerPropertyController::class, 'show'])
+            Route::get('/properties/{property}/{slug?}', [BuyerPropertyController::class, 'show'])
                 ->name('properties.show');
+            //enquiry route
+            //propertis/{id}/enquire
+            Route::post('/properties/{property}/enquire', [EnquiryController::class, 'store'])->name('properties.enquire');
+            Route::get('/enquiries', [EnquiryController::class, 'buyerIndex'])->name('enquiries.index');
+            // Route::get('/enquiries/{enquiry}', [EnquiryController::class, 'show'])->name('enquiries.show');
+            // Route::post('/enquiries/{enquiry}/reply', [EnquiryController::class, 'reply'])->name('enquiries.reply');
+            // Route::patch('/enquiries/{enquiry}/status', [EnquiryController::class, 'updateStatus'])->name('enquiries.status');
+            // Route::delete('/enquiries/{enquiry}', [EnquiryController::class, 'destroy'])->name('enquiries.destroy');
+
+
 
             Route::get('/suggestions', [BuyerPropertyController::class, 'suggestions'])
                 ->name('suggestions');
@@ -108,6 +109,10 @@ Route::middleware(['auth'])->group(function () {
             // API endpoint for infinite scroll / load more
             Route::get('/properties/load-more', [BuyerPropertyController::class, 'loadMore'])
                 ->name('properties.load-more');
+
+            Route::get('/favorites', [FavoriteController::class, 'favorites'])->name('favorites');
+            Route::post('/favorites/{property}/toggle', [FavoriteController::class, 'toggle'])->name('favorites.toggle');
+            Route::get('/favorites/{property}/check', [FavoriteController::class, 'check'])->name('favorites.check');
         });
 
 
@@ -120,10 +125,13 @@ Route::middleware(['auth'])->group(function () {
 
         // Seller property CRUD using Seller\PropertyController
         Route::prefix('seller')->name('seller.')->group(function () {
-            Route::get('/seller/properties/rejected', [SellerPropertyController::class, 'rejected'])
+            Route::get('/properties/rejected', [SellerPropertyController::class, 'rejected'])
                 ->name('properties.rejected');
+            Route::get('/properties/performance', [SellerPropertyController::class, 'performance'])->name('properties.performance');
+            Route::patch('/properties/{property}/listing-status', [SellerPropertyController::class, 'updateListingStatus'])->name('properties.listing-status');
             Route::resource('properties', SellerPropertyController::class);
         });
+        Route::get('/seller/enquiries', [EnquiryController::class, 'sellerIndex'])->name('seller.enquiries.index');
 
     });
 
@@ -154,10 +162,6 @@ Route::get('/dashboard', function () {
     };
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-/*
-|--------------------------------------------------------------------------
-| Auth Routes (Laravel Breeze)
-|--------------------------------------------------------------------------
-*/
+
 
 require __DIR__ . '/auth.php';

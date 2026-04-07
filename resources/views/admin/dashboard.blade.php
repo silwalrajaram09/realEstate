@@ -95,6 +95,10 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Listings Trend</h3>
+                <canvas id="listingChart" height="120"></canvas>
+            </div>
             <!-- Pending Properties -->
             <div class="bg-white rounded-xl shadow-sm border border-gray-200" id="pending">
                 <div class="px-6 py-4 border-b border-gray-200">
@@ -141,6 +145,7 @@
                                 <form action="{{ route('admin.properties.reject', $property) }}" method="POST">
                                     @csrf
                                     @method('PATCH')
+                                    <input type="hidden" name="reason" value="Rejected by admin review. Please review your listing details and resubmit.">
                                     <button type="submit"
                                         class="px-3 py-1 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition">
                                         Reject
@@ -201,4 +206,18 @@
             </div>
         </div>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const trend = @json($monthlyListings ?? []);
+        const labels = trend.map(i => i.month);
+        const values = trend.map(i => i.total);
+        const ctx = document.getElementById('listingChart');
+        if (ctx) {
+            new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets: [{ label: 'Listings', data: values, borderColor: '#b5813a', backgroundColor: 'rgba(181,129,58,0.2)', tension: 0.3 }] },
+                options: { responsive: true, plugins: { legend: { display: false } } }
+            });
+        }
+    </script>
 @endsection
