@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Property;
 use Illuminate\Http\Request;
 use App\Services\PropertySearchService;
+use App\Services\PropertyRecommendationService;
 
 class PropertyController extends Controller
 {
@@ -36,21 +37,9 @@ class PropertyController extends Controller
     /**
      * Show single property with recommendations
      */
-    public function show(Property $property)
+    public function show(Property $property, PropertyRecommendationService $recommendationService)
     {
-        $recommendations = Property::query()
-            ->where('id', '!=', $property->id)
-            ->where('type', $property->type)
-            ->whereBetween('price', [
-                $property->price * 0.9,
-                $property->price * 1.1
-            ])
-            ->orderByRaw("
-                (location = ?) DESC,
-                ABS(price - ?) ASC
-            ", [$property->location, $property->price])
-            ->limit(6)
-            ->get();
+        $recommendations = $recommendationService->getSimilarProperties($property, 6, auth()->id());
 
         return view('properties.show', compact('property', 'recommendations'));
     }

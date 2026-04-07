@@ -24,7 +24,8 @@ class User extends Authenticatable
         'password',
         'phone',
         'google_id',
-        'role'
+        'role',
+        'is_suspended',
     ];
 
     /**
@@ -45,6 +46,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'is_suspended' => 'boolean',
     ];
 
 

@@ -1,6 +1,7 @@
 <x-public>
 
 <style>
+    [x-cloak] { display: none !important; }
     @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,400&family=Outfit:wght@300;400;500;600&display=swap');
 
     .list-root { font-family: 'Outfit', sans-serif; }
@@ -301,9 +302,18 @@
         display: inline-flex; align-items: center; justify-content: center;
         margin-bottom: 1.75rem;
     }
+    .skeleton-shimmer {
+        background: linear-gradient(90deg, #f3efe7 25%, #ece6db 37%, #f3efe7 63%);
+        background-size: 400% 100%;
+        animation: shimmer 1.4s ease infinite;
+    }
+    @keyframes shimmer {
+        0% { background-position: 100% 0; }
+        100% { background-position: 0 0; }
+    }
 </style>
 
-<div class="list-root max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-14">
+<div class="list-root max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-14" x-data="{loading:true}" x-init="setTimeout(() => loading=false, 350)">
 
     {{-- ── PAGE HEADER ── --}}
     <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 mb-12">
@@ -344,7 +354,18 @@
     @if($properties->count())
 
         {{-- ── GRID ── --}}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7" x-show="loading" x-cloak>
+            <template x-for="i in 6" :key="'sk-'+i">
+                <div class="prop-card">
+                    <div class="skeleton-shimmer h-56"></div>
+                    <div class="p-5 space-y-3">
+                        <div class="skeleton-shimmer h-4 rounded"></div>
+                        <div class="skeleton-shimmer h-3 rounded w-2/3"></div>
+                    </div>
+                </div>
+            </template>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7" x-show="!loading" x-cloak>
             @foreach($properties as $property)
 
                 <article class="prop-card reveal">

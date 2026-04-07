@@ -482,74 +482,7 @@
 
             </div>
 
-            {{-- ── RECOMMENDATIONS ── --}}
-            @if(isset($recommendations) && $recommendations->count())
-                <div style="margin-top:4rem;">
-                    <hr class="gold-rule" style="margin-bottom:2rem;">
-                    <div
-                        style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:1.75rem;flex-wrap:wrap;gap:0.75rem;">
-                        <div>
-                            <div style="display:flex;align-items:center;gap:0.625rem;margin-bottom:0.375rem;">
-                                <div style="width:1.5rem;height:1px;background:#c9a96e;"></div>
-                                <span
-                                    style="font-size:0.65rem;letter-spacing:0.14em;text-transform:uppercase;color:#c9a96e;font-weight:600;">
-                                    More Like This
-                                </span>
-                            </div>
-                            <h2
-                                style="font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:600;color:#0f0f0f;">
-                                Similar Properties
-                            </h2>
-                        </div>
-                        <a href="{{ route('buyer.properties', ['type' => $property->type]) }}"
-                            style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
-                                   color:#0f0f0f;text-decoration:none;border-bottom:1.5px solid #c9a96e;padding-bottom:2px;">
-                            View All →
-                        </a>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        @foreach($recommendations as $rec)
-                            <a href="{{ route('buyer.properties.show', $rec->id) }}" class="rec-card">
-                                <div class="rec-img">
-                                    <img src="{{ $rec->image_url ?? asset('images/image1.jpg') }}"
-                                         alt="{{ $rec->title }}" loading="lazy">
-                                    <div
-                                        style="position:absolute;inset:0;background:linear-gradient(to top,rgba(10,8,5,0.4) 0%,transparent 55%);">
-                                    </div>
-                                    <div style="position:absolute;top:0.75rem;left:0.75rem;">
-                                        <span
-                                            style="font-size:0.58rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;
-                                                   padding:0.225rem 0.55rem;border-radius:2px;background:#c9a96e;color:#0f0f0f;">
-                                            {{ ucfirst($rec->purpose) }}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div class="rec-body">
-                                    <div class="rec-title">{{ $rec->title }}</div>
-                                    <div class="rec-loc">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none"
-                                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        </svg>
-                                        {{ $rec->location }}
-                                    </div>
-                                    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:0.5rem;">
-                                        <div class="rec-price">Rs {{ number_format($rec->price) }}</div>
-                                        @if($rec->area)
-                                            <span style="font-size:0.72rem;color:#b0a090;font-weight:300;">
-                                                {{ number_format($rec->area) }} sqft
-                                            </span>
-                                        @endif
-                                    </div>
-                                </div>
-                            </a>
-                        @endforeach
-                    </div>
-                </div>
-            @endif
+            @include('buyer.properties.partials._recommended', ['recommendations' => $recommendations ?? collect()])
 
         </div>
     </div>

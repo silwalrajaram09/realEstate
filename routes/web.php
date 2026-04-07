@@ -39,7 +39,7 @@ Route::get('/', [HomeController::class, 'index'])->name('home');
 // Route::get('/properties/{property}', [PropertyController::class, 'show'])
 //     // ->name('properties.show');
 Route::get('/properties', [PropertyController::class, 'list'])->name('properties.list');
-Route::get('/properties/{property}', [PropertyController::class, 'show'])->name('properties.show');
+Route::get('/properties/{property}/{slug?}', [PropertyController::class, 'show'])->name('properties.show');
 
 
 
@@ -90,7 +90,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/properties/buy', [BuyerPropertyController::class, 'buy'])
                 ->name('properties.buy');
 
-            Route::get('/properties/{property}', [BuyerPropertyController::class, 'show'])
+            Route::get('/properties/{property}/{slug?}', [BuyerPropertyController::class, 'show'])
                 ->name('properties.show');
             //enquiry route
             //propertis/{id}/enquire
@@ -125,8 +125,10 @@ Route::middleware(['auth'])->group(function () {
 
         // Seller property CRUD using Seller\PropertyController
         Route::prefix('seller')->name('seller.')->group(function () {
-            Route::get('/seller/properties/rejected', [SellerPropertyController::class, 'rejected'])
+            Route::get('/properties/rejected', [SellerPropertyController::class, 'rejected'])
                 ->name('properties.rejected');
+            Route::get('/properties/performance', [SellerPropertyController::class, 'performance'])->name('properties.performance');
+            Route::patch('/properties/{property}/listing-status', [SellerPropertyController::class, 'updateListingStatus'])->name('properties.listing-status');
             Route::resource('properties', SellerPropertyController::class);
         });
         Route::get('/seller/enquiries', [EnquiryController::class, 'sellerIndex'])->name('seller.enquiries.index');

@@ -257,6 +257,21 @@
                             <input type="file" name="image" accept="image/*" class="form-input form-input-file">
                             <p class="form-hint">Upload a new image (JPG, PNG, max 2 MB)</p>
                         </div>
+                        <div x-data="existingGalleryOrder(@js($property->gallery ?? []))">
+                            <label class="form-label">Reorder Existing Gallery</label>
+                            <input type="hidden" name="gallery_order_existing" :value="JSON.stringify(gallery)">
+                            <div class="grid grid-cols-4 gap-3">
+                                <template x-for="(url, idx) in gallery" :key="url + idx">
+                                    <div class="border rounded p-1 bg-white" draggable="true"
+                                        @dragstart="dragStart(idx)" @dragover.prevent @drop="dropAt(idx)">
+                                        <img :src="url" class="w-full h-20 object-cover rounded" />
+                                        <div class="text-[10px] text-center mt-1 text-[#8c8070]">Drag to reorder</div>
+                                    </div>
+                                </template>
+                            </div>
+                            <label class="form-label mt-4">Add New Gallery Images</label>
+                            <input type="file" name="gallery[]" accept="image/*" multiple class="form-input form-input-file">
+                        </div>
                     </div>
 
                     {{-- ── RESIDENTIAL DETAILS ── --}}
@@ -548,6 +563,21 @@
                     this.reverseGeocode(lat, lng);
                 }
             }
+        }
+        function existingGalleryOrder(initialGallery) {
+            return {
+                gallery: initialGallery || [],
+                dragging: null,
+                dragStart(index) {
+                    this.dragging = index;
+                },
+                dropAt(index) {
+                    if (this.dragging === null || this.dragging === index) return;
+                    const moved = this.gallery.splice(this.dragging, 1)[0];
+                    this.gallery.splice(index, 0, moved);
+                    this.dragging = null;
+                }
+            };
         }
     </script>
 </x-app-layout>

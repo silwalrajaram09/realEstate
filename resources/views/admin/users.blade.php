@@ -55,20 +55,19 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     {{ $user->created_at->format('M d, Y') }}
                                 </td>
-                                <!-- <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            @if($user->role !== 'admin')
-                                                <form action="{{ route('admin.users.make-admin', $user) }}" method="POST" class="inline">
-                                                    @csrf
-                                                    @method('PATCH')
-                                                    <button type="submit" class="text-purple-600 hover:text-purple-900"
-                                                        onclick="return confirm('Make this user an admin?')">
-                                                        Make Admin
-                                                    </button>
-                                                </form>
-                                            @else
-                                                <span class="text-gray-400">Admin</span>
-                                            @endif
-                                        </td> -->
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <form action="{{ route('admin.users.suspend-toggle', $user) }}" method="POST" class="inline">
+                                        @csrf @method('PATCH')
+                                        <button
+                                            type="submit"
+                                            class="{{ $user->is_suspended ? 'text-green-600' : 'text-red-600' }} disabled:text-gray-400"
+                                            @disabled(auth()->id() === $user->id)
+                                            @if(auth()->id() === $user->id) title="You cannot suspend your own account." @endif
+                                        >
+                                            {{ $user->is_suspended ? 'Reactivate' : 'Suspend' }}
+                                        </button>
+                                    </form>
+                                </td>
                             </tr>
                         @empty
                             <tr>

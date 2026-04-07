@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\EnquiryAlertEvent;
 use App\Models\Enquiry;
 use App\Models\Property;
 use Illuminate\Http\Request;
@@ -48,7 +49,16 @@ class EnquiryController extends Controller
         ]);
 
         // ── Optional: send email notification to seller ──
-        // Mail::to($property->seller->email)->send(new EnquiryReceived($enquiry));
+        if ($property->seller?->email) {
+            Mail::raw("New enquiry received for {$property->title}.", function ($m) use ($property) {
+                $m->to($property->seller->email)->subject('New Property Enquiry');
+            });
+        }
+        event(new EnquiryAlertEvent($property->user_id, [
+            'property_id' => $property->id,
+            'property_title' => $property->title,
+            'enquiry_id' => $enquiry->id,
+        ]));
 
         return response()->json([
             'success' => true,

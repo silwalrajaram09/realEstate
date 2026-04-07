@@ -11,26 +11,27 @@ use App\Models\Favorite;
 use Illuminate\Support\Facades\Auth;
 use App\Services\PropertySearchService;
 use App\Services\PropertyRecommendationService;
-use App\Services\Cosinesimilarityservice;
+use App\Services\CosineSimilarityService;
 
 class BuyerPropertyController extends Controller
 {
     public function __construct(
         protected PropertySearchService $searchService,
         protected PropertyRecommendationService $recommendationService,
-        protected Cosinesimilarityservice $cosineService,
-    ) {}
+        protected CosineSimilarityService $cosineService,
+    ) {
+    }
 
     /*
     |--------------------------------------------------------------------------
-    | Browse / Listing Pages
+    | Browse Pages
     |--------------------------------------------------------------------------
     */
 
     public function index(Request $request)
     {
-        $filters       = $this->extractFilters($request);
-        $properties    = $this->recommendationService->search($filters);
+        $filters = $this->extractFilters($request);
+        $properties = $this->recommendationService->search($filters);
         $hasTextSearch = !empty($filters['q']);
 
         return view('buyer.properties.index', compact('properties', 'filters', 'hasTextSearch'));
@@ -43,7 +44,7 @@ class BuyerPropertyController extends Controller
             ['purpose' => 'buy']
         );
 
-        $properties    = $this->recommendationService->search($filters);
+        $properties = $this->recommendationService->search($filters);
         $hasTextSearch = !empty($filters['q']);
 
         return view('buyer.properties.buy', compact('properties', 'filters', 'hasTextSearch'));
@@ -56,7 +57,7 @@ class BuyerPropertyController extends Controller
             ['purpose' => 'rent']
         );
 
-        $properties    = $this->recommendationService->search($filters);
+        $properties = $this->recommendationService->search($filters);
         $hasTextSearch = !empty($filters['q']);
 
         return view('buyer.properties.rent', compact('properties', 'filters', 'hasTextSearch'));
@@ -70,43 +71,40 @@ class BuyerPropertyController extends Controller
 
     public function show(Property $property)
     {
-        if ($property->status !== 'approved') {
+        $isAvailable = $property->status === 'approved' && (($property->listing_status ?? 'available') === 'available');
+        if (!$isAvailable) {
             abort(404, 'Property not found or not available.');
         }
 
         $property->incrementViews();
         $this->trackView($property);
 
-        $recentlyViewedProperties = $this->getRecentlyViewed($property);
-        $recommendations          = $this->recommendationService->getSimilarProperties($property);
+        $recentlyViewed = $this->getRecentlyViewed($property);
+        $recommendations = $this->recommendationService->getSimilarProperties($property, 6, Auth::id());
 
-        return view('buyer.properties.show', [
-            'property'        => $property,
-            'recommendations' => $recommendations,
-            'recentlyViewed'  => $recentlyViewedProperties,
-        ]);
+        return view('buyer.properties.show', compact('property', 'recommendations', 'recentlyViewed'));
     }
 
     /*
     |--------------------------------------------------------------------------
-    | Infinite Scroll / Load More
+    | Load More (infinite scroll)
     |--------------------------------------------------------------------------
     */
 
     public function loadMore(Request $request): JsonResponse
     {
-        $filters             = $this->extractFilters($request);
-        $filters['page']     = (int) $request->get('page', 2);
+        $filters = $this->extractFilters($request);
+        $filters['page'] = (int) $request->get('page', 2);
         $filters['per_page'] = min((int) $request->get('per_page', 12), 24);
 
         $properties = $this->recommendationService->search($filters);
 
         return response()->json([
-            'properties'    => $properties->items(),
+            'properties' => $properties->items(),
             'next_page_url' => $properties->nextPageUrl(),
-            'has_more'      => $properties->hasMorePages(),
-            'current_page'  => $properties->currentPage(),
-            'total'         => $properties->total(),
+            'has_more' => $properties->hasMorePages(),
+            'current_page' => $properties->currentPage(),
+            'total' => $properties->total(),
         ]);
     }
 
@@ -114,75 +112,97 @@ class BuyerPropertyController extends Controller
     |--------------------------------------------------------------------------
     | Personalized Suggestions
     |
-    | Uses the exact same 5-strategy cascade as BuyerDashboardController so
-    | both pages always produce consistent, coherent recommendations.
-    | personalized() is called as personalized($preferences, $limit) — a plain
-    | Collection is returned, matching the dashboard's existing signature.
+    | Flow:
+    |   1. Determine which strategy has data (favorites → views → session → city → trending)
+    |   2. Extract SQL preference filters from that data (loose — cosine does fine ranking)
+    |   3. Call recommendationService->personalized($preferences, 12, $userId)
+    |      └── Stage 1: SQL loose filter → wide candidate pool
+    |      └── Stage 2: Numeric cosine (buildUserVector → rankForUser) → top 12 with scores
+    |   4. If user also typed ?q= → re-rank the 12 by text cosine (Engine A) on top
+    |   5. Pass to blade: properties with ->similarity_score, $strategyLabel
     |--------------------------------------------------------------------------
     */
 
     public function suggestions(Request $request)
     {
-        $user       = Auth::user();
+        $user = Auth::user();
         $properties = collect();
+        $strategyNum = 5;
 
-        // ── Strategy 1: Favorites (strongest signal) ──────────────────────
+        // ── Strategy 1: Favorites ──────────────────────────────────────────
         if ($user) {
             $favorites = Favorite::where('user_id', $user->id)
                 ->with('property')
                 ->latest()
-                ->take(5)
+                ->take(20)
                 ->get()
                 ->pluck('property')
                 ->filter();
 
             if ($favorites->isNotEmpty()) {
-                $preferences = $this->extractPreferences($favorites);
-                $properties  = $this->recommendationService->personalized($preferences, 12);
+                $properties = $this->recommendationService->personalized(
+                    preferences: $this->extractPreferences($favorites),
+                    limit: 12,
+                    userId: $user->id,
+                );
+                $strategyNum = 1;
             }
         }
 
-        // ── Strategy 2: Recently viewed — DB (strong signal) ──────────────
+        // ── Strategy 2: Recently viewed (DB) ──────────────────────────────
         if ($properties->isEmpty() && $user) {
-            $recentViews = PropertyView::where('user_id', $user->id)
+            $views = PropertyView::where(function ($q) use ($user) {
+                $q->where('buyer_id', $user->id)->orWhere('user_id', $user->id);
+            })
                 ->with('property')
-                ->latest()
-                ->take(10)
+                ->orderByDesc('viewed_at')
+                ->take(20)
                 ->get()
                 ->pluck('property')
                 ->filter();
 
-            if ($recentViews->isNotEmpty()) {
-                $preferences = $this->extractPreferences($recentViews);
-                $properties  = $this->recommendationService->personalized($preferences, 12);
+            if ($views->isNotEmpty()) {
+                $properties = $this->recommendationService->personalized(
+                    preferences: $this->extractPreferences($views),
+                    limit: 12,
+                    userId: $user->id,
+                );
+                $strategyNum = 2;
             }
         }
 
-        // ── Strategy 3: Recently viewed — session (guests) ────────────────
+        // ── Strategy 3: Recently viewed (session — guests) ─────────────────
         if ($properties->isEmpty() && !$user) {
             $sessionIds = session()->get('recently_viewed', []);
 
             if (!empty($sessionIds)) {
-                $sessionViewed = Property::whereIn('id', $sessionIds)
-                    ->approved()
+                $sessionProps = Property::whereIn('id', $sessionIds)->approved()
                     ->get()
                     ->sortBy(fn($p) => array_search($p->id, $sessionIds))
                     ->values();
 
-                if ($sessionViewed->isNotEmpty()) {
-                    $preferences = $this->extractPreferences($sessionViewed);
-                    $properties  = $this->recommendationService->personalized($preferences, 12);
+                if ($sessionProps->isNotEmpty()) {
+                    // For guests: no userId → Stage 2 skips numeric cosine,
+                    // returns SQL-scored pool. Still better than random.
+                    $properties = $this->recommendationService->personalized(
+                        preferences: $this->extractPreferences($sessionProps),
+                        limit: 12,
+                        userId: null,
+                    );
+                    $strategyNum = 3;
                 }
             }
         }
 
-        // ── Strategy 4: User city ─────────────────────────────────────────
-        if ($properties->isEmpty() && $user && $user->city) {
+        // ── Strategy 4: User city ──────────────────────────────────────────
+        if ($properties->isEmpty() && $user?->city) {
             $properties = Property::approved()
                 ->where('location', 'LIKE', "%{$user->city}%")
-                ->inRandomOrder()
+                ->orderBy('views_count', 'desc')
                 ->take(12)
-                ->get();
+                ->get()
+                ->each(fn($p) => $p->similarity_score = null);
+            $strategyNum = 4;
         }
 
         // ── Strategy 5: Trending fallback ─────────────────────────────────
@@ -190,17 +210,22 @@ class BuyerPropertyController extends Controller
             $properties = Property::approved()
                 ->orderBy('views_count', 'desc')
                 ->take(12)
-                ->get();
+                ->get()
+                ->each(fn($p) => $p->similarity_score = null);
+            $strategyNum = 5;
         }
 
-        // ── Cosine re-rank if user typed a text query ──────────────────────
-        $query = $request->get('q');
-        if ($query && $properties->isNotEmpty()) {
-            $properties = $this->cosineService->rerank($properties, $query);
+        // ── Text cosine re-rank (if user typed ?q=) ────────────────────────
+        // Engine A runs on TOP of Engine B results.
+        // The numeric cosine already ordered by behavior; text cosine refines
+        // within that by the typed query.
+        $urlQuery = $request->get('q');
+        if ($urlQuery && $properties->isNotEmpty()) {
+            $properties = $this->cosineService->rerank($properties, $urlQuery);
+            // rerank() sets ->cosine_score AND ->similarity_score
         }
 
-        // Label shown in the blade to explain what produced the results
-        $strategyLabel = $this->resolveStrategyLabel($user, $query);
+        $strategyLabel = $this->resolveStrategyLabel($strategyNum, $urlQuery);
 
         return view('buyer.suggestions.index', compact('properties', 'strategyLabel'));
     }
@@ -213,10 +238,10 @@ class BuyerPropertyController extends Controller
 
     public function nearby(Request $request)
     {
-        $lat    = $request->get('lat');
-        $lng    = $request->get('lng');
+        $lat = $request->get('lat');
+        $lng = $request->get('lng');
         $radius = (int) $request->get('radius', 10);
-        $query  = $request->get('q');
+        $query = $request->get('q');
 
         if (!$lat || !$lng) {
             return redirect()->back()->with('error', 'Location coordinates required.');
@@ -233,32 +258,26 @@ class BuyerPropertyController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | Search
+    | Search (JSON)
     |--------------------------------------------------------------------------
     */
 
     public function search(Request $request): JsonResponse
     {
-        $data = $request->only([
-            'q', 'purpose', 'type', 'category',
-            'min_price', 'max_price',
-            'bedrooms', 'bathrooms',
-            'sort', 'per_page',
-        ]);
-
+        $data = $request->only(['q', 'purpose', 'type', 'category', 'min_price', 'max_price', 'bedrooms', 'bathrooms', 'sort', 'per_page']);
         $results = $this->searchService->search($data);
 
         return response()->json([
-            'properties'   => $results->items(),
-            'has_more'     => $results->hasMorePages(),
+            'properties' => $results->items(),
+            'has_more' => $results->hasMorePages(),
             'current_page' => $results->currentPage(),
-            'total'        => $results->total(),
+            'total' => $results->total(),
         ]);
     }
 
     /*
     |--------------------------------------------------------------------------
-    | Stats
+    | Stats / Enquiry
     |--------------------------------------------------------------------------
     */
 
@@ -267,98 +286,69 @@ class BuyerPropertyController extends Controller
         return response()->json($this->recommendationService->stats());
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Enquiry
-    |--------------------------------------------------------------------------
-    */
-
     public function enquire(Request $request, Property $property): JsonResponse
     {
         $request->validate([
-            'name'  => 'required|string|max:255',
+            'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             'phone' => 'required|string|max:20',
         ]);
 
-        // TODO: send email / save to enquiries table
-
-        return response()->json([
-            'message' => 'Your enquiry has been sent successfully!',
-        ]);
+        return response()->json(['message' => 'Your enquiry has been sent successfully!']);
     }
 
     /*
     |--------------------------------------------------------------------------
     | Private Helpers
-    | extractPreferences() and getMostFrequent() are identical to the copies
-    | in BuyerDashboardController so both always produce the same preference
-    | vector from the same data.
     |--------------------------------------------------------------------------
     */
 
     /**
-     * Build a preference array from a collection of Property models.
+     * Build SQL preference filters from a collection of Property models.
+     * These are LOOSE filters — cosine does the fine-grained ranking.
      */
-    private function extractPreferences($properties): array
+    private function extractPreferences(\Illuminate\Support\Collection $properties): array
     {
         return [
-            'purpose'   => $this->getMostFrequent($properties, 'purpose'),
-            'type'      => $this->getMostFrequent($properties, 'type'),
-            'category'  => $this->getMostFrequent($properties, 'category'),
-            'min_price' => $properties->min('price') * 0.8,
-            'max_price' => $properties->max('price') * 1.2,
-            'bedrooms'  => $this->getMostFrequent($properties, 'bedrooms'),
+            'purpose' => $this->getMostFrequent($properties, 'purpose'),
+            'type' => $this->getMostFrequent($properties, 'type'),
+            'category' => $this->getMostFrequent($properties, 'category'),
+            // Widen price range: cosine handles properties priced slightly outside
+            'min_price' => $properties->min('price') * 0.7,
+            'max_price' => $properties->max('price') * 1.3,
+            'bedrooms' => $this->getMostFrequent($properties, 'bedrooms'),
         ];
     }
 
-    /**
-     * Return the most frequently occurring non-null value for $field.
-     */
-    private function getMostFrequent($collection, string $field): mixed
+    private function getMostFrequent(\Illuminate\Support\Collection $collection, string $field): mixed
     {
         $values = $collection->pluck($field)->filter();
-
-        if ($values->isEmpty()) {
+        if ($values->isEmpty())
             return null;
-        }
 
         $counts = array_count_values($values->toArray());
         arsort($counts);
         return key($counts);
     }
 
-    /**
-     * Human-readable label explaining which strategy produced the results.
-     */
-    private function resolveStrategyLabel(?object $user, ?string $query): string
+    private function resolveStrategyLabel(int $strategy, ?string $urlQuery): string
     {
-        if ($query) {
+        if ($urlQuery) {
             return 'Search-matched & cosine ranked';
         }
 
-        if (!$user) {
-            return 'Based on your browsing history';
-        }
-
-        return 'Personalised for you';
+        return match ($strategy) {
+            1 => 'Ranked by your saved favourites',
+            2 => 'Ranked by your recently viewed',
+            3 => 'Based on your browsing history',
+            4 => 'Properties near your city',
+            default => 'Trending properties',
+        };
     }
 
-    /**
-     * Extract standard filter fields from the request.
-     */
     private function extractFilters(Request $request, array $excludes = []): array
     {
-        $allowed = [
-            'purpose', 'type', 'category',
-            'q',
-            'min_price', 'max_price',
-            'bedrooms', 'bathrooms',
-            'sort', 'sort_order',
-            'lat', 'lng',
-            'per_page',
-        ];
-
+        $allowed = ['purpose', 'type', 'category', 'q', 'min_price', 'max_price', 'min_area', 'max_area', 'bedrooms', 'bathrooms', 'sort', 'sort_order', 'lat', 'lng', 'radius', 'per_page'];
         $fields = array_diff($allowed, $excludes);
 
         return array_filter(
@@ -367,48 +357,47 @@ class BuyerPropertyController extends Controller
         );
     }
 
-    /**
-     * Track a property view for the current user (DB) or guest (session).
-     */
     private function trackView(Property $property): void
     {
         if ($user = Auth::user()) {
             PropertyView::updateOrCreate(
                 ['user_id' => $user->id, 'property_id' => $property->id],
-                ['created_at' => now()]
+                ['buyer_id' => $user->id, 'viewed_at' => now()]
             );
         } else {
-            $recentlyViewed = session()->get('recently_viewed', []);
-            $recentlyViewed = array_filter($recentlyViewed, fn($id) => $id != $property->id);
-            array_unshift($recentlyViewed, $property->id);
-            session()->put('recently_viewed', array_slice($recentlyViewed, 0, 10));
+            $viewed = session()->get('recently_viewed', []);
+            $viewed = array_filter($viewed, fn($id) => $id != $property->id);
+            array_unshift($viewed, $property->id);
+            session()->put('recently_viewed', array_slice($viewed, 0, 10));
         }
     }
 
-    /**
-     * Load the recently viewed list for the current user or guest.
-     */
-    private function getRecentlyViewed(Property $property): \Illuminate\Database\Eloquent\Collection|\Illuminate\Support\Collection
+    private function getRecentlyViewed(Property $property): \Illuminate\Support\Collection|\Illuminate\Database\Eloquent\Collection
     {
         if ($user = Auth::user()) {
             return Property::join('property_views', 'properties.id', '=', 'property_views.property_id')
-                ->where('property_views.user_id', $user->id)
+                ->where(function ($q) use ($user) {
+                    $q->where('property_views.buyer_id', $user->id)->orWhere('property_views.user_id', $user->id);
+                })
                 ->where('properties.id', '!=', $property->id)
                 ->where('properties.status', 'approved')
-                ->orderBy('property_views.created_at', 'desc')
+                ->where(function ($q) {
+                    $q->whereNull('properties.listing_status')->orWhere('properties.listing_status', 'available');
+                })
+                ->orderByDesc('property_views.viewed_at')
                 ->select('properties.*')
                 ->distinct()
                 ->take(10)
                 ->get();
         }
 
-        $recentlyViewed = session()->get('recently_viewed', []);
+        $ids = session()->get('recently_viewed', []);
 
-        return Property::whereIn('id', $recentlyViewed)
+        return Property::whereIn('id', $ids)
             ->approved()
             ->where('id', '!=', $property->id)
             ->get()
-            ->sortBy(fn($prop) => array_search($prop->id, $recentlyViewed))
+            ->sortBy(fn($p) => array_search($p->id, $ids))
             ->values();
     }
 }

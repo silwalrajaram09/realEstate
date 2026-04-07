@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Property;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class PropertyController extends Controller
 {
@@ -36,6 +37,31 @@ class PropertyController extends Controller
         ];
 
         return view('seller.properties.index', compact('properties', 'stats'));
+    }
+
+    public function performance()
+    {
+        $user = Auth::user();
+        $properties = Property::where('user_id', $user->id)
+            ->withCount([
+                'views as views_events_count',
+                'enquiries',
+                'favoritedBy',
+            ])
+            ->latest()
+            ->paginate(10);
+
+        return view('seller.properties.performance', compact('properties'));
+    }
+
+    public function updateListingStatus(Request $request, Property $property)
+    {
+        $this->authorize('update', $property);
+        $request->validate([
+            'listing_status' => 'required|in:available,sold,rented',
+        ]);
+        $property->update(['listing_status' => $request->listing_status]);
+        return back()->with('success', 'Listing status updated.');
     }
 
     /**
@@ -68,28 +94,61 @@ class PropertyController extends Controller
 
             // Size & Images
             'area' => 'required|integer|min:1',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'gallery' => 'nullable|array|max:10',
+            'gallery.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:4096',
+            'gallery_order' => 'nullable|string',
 
-            // Residential Fields
-            'bedrooms' => 'nullable|integer|min:0',
-            'bathrooms' => 'nullable|integer|min:0',
+            // Residential Fields (only when the create form shows this section)
+            'bedrooms' => [
+                'nullable',
+                Rule::requiredIf(fn () => in_array($request->type, ['flat', 'house'], true) && $request->category === 'residential'),
+                'integer',
+                'min:0',
+            ],
+            'bathrooms' => [
+                'nullable',
+                Rule::requiredIf(fn () => in_array($request->type, ['flat', 'house'], true) && $request->category === 'residential'),
+                'integer',
+                'min:0',
+            ],
             'floor_no' => 'nullable|integer|min:0',
             'total_floors' => 'nullable|integer|min:0',
             'year_built' => 'nullable|integer|min:1900|max:' . date('Y'),
 
             // Land Fields
-            'road_access' => 'nullable|integer|min:0',
+            'road_access' => 'nullable|required_if:type,land|integer|min:0',
             'facing' => 'nullable|in:east,west,north,south,northeast,northwest,southeast,southwest',
-            'land_shape' => 'nullable|in:rectangle,square,irregular,triangular',
-            'plot_number' => 'nullable|string|max:50',
+            'land_shape' => 'nullable|required_if:type,land|in:rectangle,square,irregular,triangular',
+            'plot_number' => 'nullable|required_if:type,land|string|max:50',
 
             // Commercial Fields
-            'parking_spaces' => 'nullable|integer|min:0',
+            'parking_spaces' => [
+                'nullable',
+                Rule::requiredIf(fn () => in_array($request->type, ['commercial', 'office'], true) && $request->category === 'commercial'),
+                'integer',
+                'min:0',
+            ],
 
             // Industrial Fields
-            'clear_height' => 'nullable|numeric|min:0',
-            'loading_docks' => 'nullable|integer|min:0',
-            'power_supply' => 'nullable|integer|min:0',
+            'clear_height' => [
+                'nullable',
+                Rule::requiredIf(fn () => $request->type === 'warehouse' && $request->category === 'industrial'),
+                'numeric',
+                'min:0',
+            ],
+            'loading_docks' => [
+                'nullable',
+                Rule::requiredIf(fn () => $request->type === 'warehouse' && $request->category === 'industrial'),
+                'integer',
+                'min:0',
+            ],
+            'power_supply' => [
+                'nullable',
+                Rule::requiredIf(fn () => $request->type === 'warehouse' && $request->category === 'industrial'),
+                'integer',
+                'min:0',
+            ],
 
             // Features
             'parking' => 'nullable|boolean',
@@ -111,7 +170,7 @@ class PropertyController extends Controller
 
             // Ownership
             'ownership_type' => 'nullable|in:freehold,leasehold,cooperative',
-            'contact_number' => 'required|string|max:20',
+            'contact_number' => ['required', 'string', 'max:25', 'regex:/^[0-9+\-\s()]{7,25}$/'],
         ]);
 
         // Handle image upload
@@ -120,6 +179,27 @@ class PropertyController extends Controller
             $imageName = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
             $image->storeAs('public/images', $imageName);
             $validated['image'] = $imageName;
+        }
+        if ($request->hasFile('gallery')) {
+            $gallery = [];
+            foreach ($request->file('gallery') as $file) {
+                $name = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $file->storeAs('public/images', $name);
+                $gallery[] = asset('storage/images/' . $name);
+            }
+            $ordered = json_decode((string) $request->input('gallery_order'), true);
+            if (is_array($ordered) && count($ordered) === count($gallery)) {
+                $temp = [];
+                foreach ($ordered as $index) {
+                    if (isset($gallery[(int) $index])) {
+                        $temp[] = $gallery[(int) $index];
+                    }
+                }
+                if (count($temp) === count($gallery)) {
+                    $gallery = $temp;
+                }
+            }
+            $validated['gallery'] = $gallery;
         }
 
         // Set default values for checkboxes
@@ -142,8 +222,9 @@ class PropertyController extends Controller
             $validated[$field] = $request->has($field) ? true : false;
         }
 
-        // Set default status
-        $validated['status'] = $request->status ?? 'pending';
+        // Always enforce moderation workflow for newly created listings.
+        $validated['status'] = 'pending';
+        $validated['listing_status'] = 'available';
 
         // Assign seller
         $validated['user_id'] = Auth::id();
@@ -199,6 +280,8 @@ class PropertyController extends Controller
             // Size & Images
             'area' => 'required|integer|min:1',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'gallery.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:4096',
+            'gallery_order_existing' => 'nullable|string',
 
             // Residential Fields
             'bedrooms' => 'nullable|integer|min:0',
@@ -255,6 +338,27 @@ class PropertyController extends Controller
             $image->storeAs('public/images', $imageName);
             $validated['image'] = $imageName;
         }
+        $gallery = $property->gallery ?? [];
+        $existingOrder = json_decode((string) $request->input('gallery_order_existing'), true);
+        if (is_array($existingOrder)) {
+            $orderedExisting = [];
+            foreach ($existingOrder as $url) {
+                if (in_array($url, $gallery, true)) {
+                    $orderedExisting[] = $url;
+                }
+            }
+            if (!empty($orderedExisting)) {
+                $gallery = $orderedExisting;
+            }
+        }
+        if ($request->hasFile('gallery')) {
+            foreach ($request->file('gallery') as $file) {
+                $name = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $file->storeAs('public/images', $name);
+                $gallery[] = asset('storage/images/' . $name);
+            }
+        }
+        $validated['gallery'] = $gallery;
 
         // Set default values for checkboxes
         $booleanFields = [

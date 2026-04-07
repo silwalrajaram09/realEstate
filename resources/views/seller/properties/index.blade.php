@@ -154,6 +154,7 @@
                                 <th>Property</th>
                                 <th>Price</th>
                                 <th>Status</th>
+                                <th>Views</th>
                                 <th>Listed</th>
                                 <th>Actions</th>
                             </tr>
@@ -180,6 +181,7 @@
                                             </div>
                                         </div>
                                     </td>
+                                    <td>{{ $property->views_count }}</td>
 
                                     <td class="prop-price">Rs {{ number_format($property->price) }}</td>
 
@@ -213,12 +215,20 @@
                                                     Delete
                                                 </button>
                                             </form>
+                                            <form action="{{ route('seller.properties.listing-status', $property->id) }}" method="POST">
+                                                @csrf @method('PATCH')
+                                                <select name="listing_status" onchange="this.form.submit()" class="text-xs border rounded px-1 py-0.5">
+                                                    <option value="available" {{ ($property->listing_status ?? 'available') === 'available' ? 'selected' : '' }}>Available</option>
+                                                    <option value="sold" {{ ($property->listing_status ?? '') === 'sold' ? 'selected' : '' }}>Sold</option>
+                                                    <option value="rented" {{ ($property->listing_status ?? '') === 'rented' ? 'selected' : '' }}>Rented</option>
+                                                </select>
+                                            </form>
                                         </div>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="empty-cell">
+                                    <td colspan="6" class="empty-cell">
                                         <svg class="w-12 h-12 mx-auto mb-3" style="color:#ede8df" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16"/>
                                         </svg>

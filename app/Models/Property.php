@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Models\User;
 use App\Models\PropertyView;
 use App\Models\Favorite;
+use App\Models\PropertyVector;
+use App\Models\Enquiry;
+use Illuminate\Support\Str;
 
 class Property extends Model
 {
@@ -57,6 +60,11 @@ class Property extends Model
         'contact_number',
         'user_id',
         'views_count',
+        'slug',
+        'is_featured',
+        'listing_status',
+        'rejection_reason',
+        'gallery',
     ];
 
     protected $casts = [
@@ -87,7 +95,23 @@ class Property extends Model
         'internet' => 'boolean',
         'loading_area' => 'boolean',
         'available_from' => 'date',
+        'is_featured' => 'boolean',
+        'gallery' => 'array',
     ];
+    protected static function booted()
+    {
+        static::saving(function (Property $property) {
+            if (empty($property->slug) || $property->isDirty('title') || $property->isDirty('location')) {
+                $base = Str::slug(trim(($property->title ?? 'property') . ' ' . ($property->location ?? 'nepal')));
+                $slug = $base ?: 'property-' . uniqid();
+                $counter = 1;
+                while (static::where('slug', $slug)->where('id', '!=', $property->id)->exists()) {
+                    $slug = $base . '-' . $counter++;
+                }
+                $property->slug = $slug;
+            }
+        });
+    }
 
     /*
     |--------------------------------------------------------------------------
@@ -108,7 +132,7 @@ class Property extends Model
 
     public function scopeApproved($query)
     {
-        return $query->where('status', 'approved');
+        return $query->where('status', 'approved')->where('listing_status', 'available');
     }
 
     public function scopePending($query)
@@ -297,7 +321,7 @@ class Property extends Model
 
     public function getIsAvailableAttribute()
     {
-        return $this->status === 'approved';
+        return $this->status === 'approved' && $this->listing_status === 'available';
     }
 
     public function getFeaturesAttribute()
@@ -351,6 +375,10 @@ class Property extends Model
     {
         $this->increment('views_count');
     }
+    public function vector()
+    {
+        return $this->hasOne(PropertyVector::class);
+    }
     public function getDocumentTextAttribute(): string
     {
         return implode(' ', [
@@ -358,5 +386,9 @@ class Property extends Model
             $this->title ?? '',
             $this->description ?? '',
         ]);
+    }
+    public function enquiries()
+    {
+        return $this->hasMany(Enquiry::class);
     }
 }

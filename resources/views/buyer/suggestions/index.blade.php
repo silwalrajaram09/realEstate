@@ -23,16 +23,21 @@
             because personalized($prefs, $limit) returns a Collection.
             So we use ->count() only — no ->total() needed.
         --}}
-        @if(isset($properties) && $properties->count() > 0)
+        @php
+            $rankedProperties = collect($properties ?? [])->filter(function ($p) {
+                return ($p->recommendation_confidence ?? 'medium') !== 'low';
+            })->values();
+        @endphp
+        @if($rankedProperties->count() > 0)
             <div class="sugg-header-meta">
-                <div class="sugg-header-count">{{ $properties->count() }}</div>
+                <div class="sugg-header-count">{{ $rankedProperties->count() }}</div>
                 <div class="sugg-header-count-label">matched listings</div>
             </div>
         @endif
     </div>
 
     {{-- ── TOOLBAR ── --}}
-    @if(isset($properties) && $properties->count() > 0)
+    @if(isset($rankedProperties) && $rankedProperties->count() > 0)
     <div class="sugg-toolbar">
         <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
             <div class="cosine-badge">
@@ -40,7 +45,7 @@
                 Cosine similarity ranked
             </div>
             <span style="font-size:0.8rem; font-weight:300; color:#8c8070;">
-                Showing {{ $properties->count() }} personalised result{{ $properties->count() === 1 ? '' : 's' }}
+                Showing {{ $rankedProperties->count() }} personalised result{{ $rankedProperties->count() === 1 ? '' : 's' }}
             </span>
         </div>
         <div style="display:flex; align-items:center; gap:0.75rem;">
@@ -60,117 +65,9 @@
     {{-- ── GRID ── --}}
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
-        @if(isset($properties) && $properties->count() > 0)
-            @foreach($properties as $i => $property)
-                <div class="prop-card" style="animation-delay: {{ $i * 0.06 }}s">
-
-                    {{-- ── Image ── --}}
-                    <div class="prop-img">
-                        @if($property->image)
-                            <img src="{{ asset('images/' . $property->image) }}" alt="{{ $property->title }}">
-                        @else
-                            <div class="prop-img-placeholder">
-                                <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="#c9a96e" stroke-width="1">
-                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-                                </svg>
-                            </div>
-                        @endif
-
-                        <span class="prop-badge prop-badge-purpose">{{ ucfirst($property->purpose) }}</span>
-                        <span class="prop-badge-type">{{ ucfirst($property->type) }}</span>
-
-                        {{--
-                            FIX: isset() returns false for 0.0 (falsy), so use !== null check.
-                            Also cap at 100% in case the service returns a score slightly > 1.
-                        --}}
-                        @php
-                            $score        = $property->similarity_score ?? null;
-                            $scorePercent = $score !== null ? min(100, (int) round($score * 100)) : null;
-                        @endphp
-
-                        @if($scorePercent !== null)
-                            <div class="prop-score-bar">
-                                <div class="prop-score-fill" style="width: {{ $scorePercent }}%"></div>
-                            </div>
-                        @endif
-                    </div>
-
-                    {{-- ── Body ── --}}
-                    <div class="prop-body">
-                        <div class="prop-title">{{ $property->title }}</div>
-
-                        <div class="prop-loc">
-                            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            </svg>
-                            {{ $property->location }}
-                        </div>
-
-                        <div class="prop-specs">
-                            @if($property->bedrooms)
-                                <div class="prop-spec">
-                                    <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
-                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                            d="M3 12h18M3 12V8a2 2 0 012-2h14a2 2 0 012 2v4M3 12v5a1 1 0 001 1h16a1 1 0 001-1v-5"/>
-                                    </svg>
-                                    {{ $property->bedrooms }} bed
-                                </div>
-                            @endif
-                            @if($property->bathrooms)
-                                <div class="prop-spec">
-                                    <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
-                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                            d="M4 12h16v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5zM4 12V8a4 4 0 014-4h1"/>
-                                    </svg>
-                                    {{ $property->bathrooms }} bath
-                                </div>
-                            @endif
-                            @if($property->area)
-                                <div class="prop-spec">
-                                    <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
-                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                            d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
-                                    </svg>
-                                    {{ number_format($property->area) }} sq.ft
-                                </div>
-                            @endif
-                        </div>
-
-                        <div class="prop-footer">
-                            <div class="prop-price">
-                                Rs {{ number_format($property->price) }}
-                                {{-- FIX: guard against null category with @if --}}
-                                @if($property->category)
-                                    <span>{{ ucfirst($property->category) }}</span>
-                                @endif
-                            </div>
-                            <a href="{{ route('buyer.properties.show', $property->id) }}" class="prop-btn">
-                                View
-                                <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-                                </svg>
-                            </a>
-                        </div>
-
-                        {{--
-                            NEW: Match percentage pill in the card body.
-                            Only shown when the cosine service attaches similarity_score
-                            to the model (e.g. after rerank() is called with a query).
-                        --}}
-                        @if($scorePercent !== null)
-                            <div class="prop-match-pill">
-                                <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-                                </svg>
-                                {{ $scorePercent }}% match
-                            </div>
-                        @endif
-
-                    </div>
-                </div>
+        @if(isset($rankedProperties) && $rankedProperties->count() > 0)
+            @foreach($rankedProperties as $i => $property)
+                 <x-property-card :property="$property" :showScore="true" />
             @endforeach
 
         @else

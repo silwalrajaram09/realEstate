@@ -99,10 +99,10 @@ class PropertySearchService
         $sort = $data['sort'] ?? 'latest';
 
         match ($sort) {
-            'price_asc'  => $query->orderBy('price', 'asc'),
-            'price_desc' => $query->orderBy('price', 'desc'),
-            'oldest'     => $query->orderBy('created_at', 'asc'),
-            default      => $query->orderBy('created_at', 'desc'),
+            'price_asc'  => $query->orderByDesc('is_featured')->orderBy('price', 'asc'),
+            'price_desc' => $query->orderByDesc('is_featured')->orderBy('price', 'desc'),
+            'oldest'     => $query->orderByDesc('is_featured')->orderBy('created_at', 'asc'),
+            default      => $query->orderByDesc('is_featured')->orderBy('created_at', 'desc'),
         };
 
         if (!isset($data['cursor'])) {

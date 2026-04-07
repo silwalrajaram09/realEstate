@@ -113,6 +113,16 @@
             entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
         }, { threshold: 0.1 });
         document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+        @auth
+        if (window.bindRealtimeChannels) {
+            const role = @js(auth()->user()->role);
+            const userId = @js(auth()->id());
+            window.bindRealtimeChannels({
+                sellerId: role === 'owner' ? userId : null,
+                ownerId: role === 'owner' ? userId : null
+            });
+        }
+        @endauth
     </script>
 </body>
 </html>

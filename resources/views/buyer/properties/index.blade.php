@@ -1,6 +1,7 @@
 <x-app-layout>
 
 <style>
+    [x-cloak] { display: none !important; }
     .browse-root { font-family: 'Outfit', sans-serif; }
 
     /* Sidebar */
@@ -207,9 +208,24 @@
         transition: border-color 0.2s ease, background 0.2s ease;
     }
     .loc-btn:hover { border-color: #c9a96e; background: #fff; }
+    .skeleton-card {
+        background: #fff;
+        border: 1px solid #ede8df;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .skeleton-shimmer {
+        background: linear-gradient(90deg, #f3efe7 25%, #ece6db 37%, #f3efe7 63%);
+        background-size: 400% 100%;
+        animation: shimmer 1.4s ease infinite;
+    }
+    @keyframes shimmer {
+        0% { background-position: 100% 0; }
+        100% { background-position: 0 0; }
+    }
 </style>
 
-<div class="browse-root max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-10">
+<div class="browse-root max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-10" x-data="{loading:true}" x-init="setTimeout(() => loading=false, 350)">
 
     {{-- ── PAGE HEADER ── --}}
     <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
@@ -262,7 +278,15 @@
                     @endif
                 </div>
 
-                <form action="{{ route('buyer.properties') }}" method="GET">
+                <form action="{{ route('buyer.properties') }}" method="GET"
+                      x-data="{
+                          purpose: '{{ request('purpose', '') }}',
+                          type: '{{ request('type', '') }}',
+                          category: '{{ request('category', '') }}',
+                          isResidential() { return ['flat', 'house'].includes(this.type) || this.category === 'residential'; },
+                          isLand() { return this.type === 'land'; },
+                          isCommercialLike() { return ['commercial', 'office', 'warehouse'].includes(this.type) || ['commercial', 'industrial'].includes(this.category); }
+                      }">
 
                     {{-- Search --}}
                     <div class="filter-group">
@@ -282,9 +306,9 @@
                     <div class="filter-group">
                         <label class="filter-label">Purpose</label>
                         <div class="pill-group">
-                            @foreach(['buy' => 'Buy', 'sell' => 'Sell', 'rent' => 'Rent'] as $v => $l)
+                            @foreach(['buy' => 'Buy', 'rent' => 'Rent'] as $v => $l)
                                 <label class="pill-label">
-                                    <input type="radio" name="purpose" value="{{ $v }}" {{ request('purpose') === $v ? 'checked' : '' }}>
+                                    <input type="radio" name="purpose" value="{{ $v }}" x-model="purpose" {{ request('purpose') === $v ? 'checked' : '' }}>
                                     <span class="pill-span">{{ $l }}</span>
                                 </label>
                             @endforeach
@@ -294,19 +318,21 @@
                     {{-- Type --}}
                     <div class="filter-group">
                         <label class="filter-label">Property Type</label>
-                        <select name="type" class="filter-select">
+                        <select name="type" class="filter-select" x-model="type">
                             <option value="">All Types</option>
                             <option value="flat"       {{ request('type') === 'flat'       ? 'selected' : '' }}>Flat / Apartment</option>
                             <option value="house"      {{ request('type') === 'house'      ? 'selected' : '' }}>House</option>
                             <option value="land"       {{ request('type') === 'land'       ? 'selected' : '' }}>Land / Plot</option>
                             <option value="commercial" {{ request('type') === 'commercial' ? 'selected' : '' }}>Commercial</option>
+                            <option value="office"     {{ request('type') === 'office'     ? 'selected' : '' }}>Office</option>
+                            <option value="warehouse"  {{ request('type') === 'warehouse'  ? 'selected' : '' }}>Warehouse</option>
                         </select>
                     </div>
 
                     {{-- Category --}}
                     <div class="filter-group">
                         <label class="filter-label">Category</label>
-                        <select name="category" class="filter-select">
+                        <select name="category" class="filter-select" x-model="category">
                             <option value="">All Categories</option>
                             <option value="residential"  {{ request('category') === 'residential'  ? 'selected' : '' }}>Residential</option>
                             <option value="commercial"   {{ request('category') === 'commercial'   ? 'selected' : '' }}>Commercial</option>
@@ -334,8 +360,8 @@
                         </div>
                     </div>
 
-                    {{-- Bedrooms --}}
-                    <div class="filter-group">
+                    {{-- Bedrooms (residential only) --}}
+                    <div class="filter-group" x-show="isResidential()" x-cloak>
                         <label class="filter-label">Bedrooms</label>
                         <div class="pill-group">
                             @foreach(['' => 'Any', '1' => '1+', '2' => '2+', '3' => '3+', '4' => '4+', '5' => '5+'] as $v => $l)
@@ -347,8 +373,16 @@
                         </div>
                     </div>
 
-                    {{-- Bathrooms --}}
-                    <div class="filter-group">
+                    <div class="filter-group" x-show="isResidential() || isLand() || isCommercialLike()" x-cloak>
+                        <label class="filter-label">Area Range (sq ft)</label>
+                        <div style="display:flex; gap:0.5rem;">
+                            <input type="number" name="min_area" value="{{ request('min_area') }}" placeholder="Min" class="filter-input">
+                            <input type="number" name="max_area" value="{{ request('max_area') }}" placeholder="Max" class="filter-input">
+                        </div>
+                    </div>
+
+                    {{-- Bathrooms (residential/commercial only) --}}
+                    <div class="filter-group" x-show="isResidential() || isCommercialLike()" x-cloak>
                         <label class="filter-label">Bathrooms</label>
                         <div class="pill-group">
                             @foreach(['' => 'Any', '1' => '1+', '2' => '2+', '3' => '3+'] as $v => $l)
@@ -367,6 +401,7 @@
                         <label class="filter-label">Location</label>
                         <input type="hidden" name="lat" id="lat" value="{{ request('lat') }}">
                         <input type="hidden" name="lng" id="lng" value="{{ request('lng') }}">
+                        <input type="number" name="radius" value="{{ request('radius', 10) }}" min="1" max="100" class="filter-input" style="margin-bottom:0.5rem;" placeholder="Radius km">
                         <button type="button" onclick="getCurrentLocation()" class="loc-btn">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
@@ -410,7 +445,19 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" x-show="loading" x-cloak>
+                <template x-for="i in 6" :key="'sk-'+i">
+                    <div class="skeleton-card">
+                        <div class="skeleton-shimmer h-44"></div>
+                        <div class="p-4 space-y-3">
+                            <div class="skeleton-shimmer h-4 rounded"></div>
+                            <div class="skeleton-shimmer h-3 rounded w-3/4"></div>
+                            <div class="skeleton-shimmer h-10 rounded"></div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" x-show="!loading" x-cloak>
                 @forelse($properties as $property)
                     <x-property-card :property="$property" />
                 @empty

@@ -12,7 +12,9 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // $schedule->command('inspire')->hourly();
+        $schedule->command('recommendations:refresh')->dailyAt('01:00');
+        $schedule->command('recommendations:refresh --incremental --since-hours=2')->hourly();
+        $schedule->command('recommendations:report --sample-users=20 --limit=6')->dailyAt('02:00');
     }
 
     /**

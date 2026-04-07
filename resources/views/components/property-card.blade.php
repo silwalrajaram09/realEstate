@@ -191,8 +191,8 @@
     </button>
 
     {{-- Match score --}}
-    @if($showScore && isset($property->relevance_score))
-        <div class="pc-score">{{ round($property->relevance_score) }}% Match</div>
+    @if($showScore && isset($property->similarity_score))
+        <div class="pc-score">{{ round($property->similarity_score * 100) }}% Match</div>
     @endif
 
     {{-- Image --}}
@@ -221,7 +221,7 @@
 
     {{-- Body --}}
     <div class="pc-body">
-        <a href="{{ route('buyer.properties.show', $property->id) }}" class="pc-title">
+        <a href="{{ route('buyer.properties.show', [$property->id, $property->slug ?? null]) }}" class="pc-title">
             {{ $property->title }}
         </a>
 
@@ -269,7 +269,14 @@
             </div>
         @endif
 
-        <a href="{{ route('buyer.properties.show', $property->id) }}" class="pc-cta">View Details</a>
+        {{-- Recommendation reason (why this was shown) --}}
+        @if(isset($property->recommendation_reason))
+            <div style="margin-top:0.6rem; font-size:0.72rem; color:#8c8070; font-weight:400;">
+                {{ $property->recommendation_reason }}
+            </div>
+        @endif
+
+        <a href="{{ route('buyer.properties.show', [$property->id, $property->slug ?? null]) }}" class="pc-cta">View Details</a>
     </div>
 </div>
 

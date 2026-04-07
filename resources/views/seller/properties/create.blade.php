@@ -2,32 +2,103 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=DM+Sans:wght@300;400;500;600&display=swap');
 
-        .form-root { font-family: 'DM Sans', sans-serif; background: var(--mist, #f4f0e8); min-height: 100%; }
+        .form-root {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--mist, #f4f0e8);
+            min-height: 100%;
+        }
 
-        /* ── Page header ── */
-        .form-page-header { background: var(--cream, #faf7f2); border-bottom: 1px solid #ede8df; padding: 1.75rem 0; }
-        .form-eyebrow { display: flex; align-items: center; gap: 0.625rem; margin-bottom: 0.35rem; }
-        .form-eyebrow-line { width: 1.5rem; height: 1px; background: #b5813a; }
-        .form-eyebrow-text { font-size: 0.65rem; letter-spacing: 0.14em; text-transform: uppercase; color: #b5813a; font-weight: 600; }
-        .form-page-title { font-family: 'Playfair Display', serif; font-size: clamp(1.35rem, 2.5vw, 1.9rem); font-weight: 600; color: #1a1a2e; }
+        /* Header */
+        .form-page-header {
+            background: var(--cream, #faf7f2);
+            border-bottom: 1px solid #ede8df;
+            padding: 1.75rem 0;
+        }
 
-        /* ── Card ── */
-        .form-card { background: var(--cream, #faf7f2); border: 1px solid #ede8df; border-radius: 0.75rem; overflow: hidden; }
+        .form-eyebrow {
+            display: flex;
+            align-items: center;
+            gap: 0.625rem;
+            margin-bottom: 0.35rem;
+        }
 
-        /* ── Section heading ── */
+        .form-eyebrow-line {
+            width: 1.5rem;
+            height: 1px;
+            background: #b5813a;
+        }
+
+        .form-eyebrow-text {
+            font-size: 0.65rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: #b5813a;
+            font-weight: 600;
+        }
+
+        .form-page-title {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(1.35rem, 2.5vw, 1.9rem);
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+
+        /* Card & Layout */
+        .form-card {
+            background: var(--cream, #faf7f2);
+            border: 1px solid #ede8df;
+            border-radius: 0.75rem;
+            overflow: hidden;
+        }
+
+        .form-body {
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2.25rem;
+        }
+
+        .form-section {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
         .form-section-title {
             font-family: 'Playfair Display', serif;
-            font-size: 1rem; font-weight: 600; color: #1a1a2e;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #1a1a2e;
             padding-bottom: 0.75rem;
             border-bottom: 1px solid #ede8df;
-            margin-bottom: 0;
-            display: flex; align-items: center; gap: 0.625rem;
+            display: flex;
+            align-items: center;
+            gap: 0.625rem;
         }
-        .form-section-title::before { content: ''; width: 0.25rem; height: 1rem; background: #b5813a; border-radius: 2px; display: inline-block; }
 
-        /* ── Labels / inputs ── */
-        .form-label { display: block; font-size: 0.78rem; font-weight: 600; color: #4a4a5a; margin-bottom: 0.45rem; letter-spacing: 0.03em; text-transform: uppercase; }
-        .form-input, .form-select, .form-textarea {
+        .form-section-title::before {
+            content: '';
+            width: 0.25rem;
+            height: 1rem;
+            background: #b5813a;
+            border-radius: 2px;
+            display: inline-block;
+        }
+
+        /* Fields */
+        .form-label {
+            display: block;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #4a4a5a;
+            margin-bottom: 0.45rem;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
             width: 100%;
             padding: 0.65rem 1rem;
             border: 1px solid #ddd8ce;
@@ -36,68 +107,122 @@
             font-size: 0.875rem;
             color: #1a1a2e;
             background: #fff;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            transition: border-color 0.2s, box-shadow 0.2s;
             outline: none;
         }
-        .form-input:focus, .form-select:focus, .form-textarea:focus {
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
             border-color: #b5813a;
-            box-shadow: 0 0 0 3px rgba(181,129,58,0.12);
+            box-shadow: 0 0 0 3px rgba(181, 129, 58, 0.12);
         }
-        .form-input-readonly { background: #f4f0e8; color: #8c8070; cursor: not-allowed; }
-        .form-input-file { padding: 0.55rem 1rem; }
-        .form-textarea { resize: vertical; min-height: 6rem; }
-        .form-hint { font-size: 0.75rem; color: #8c8070; margin-top: 0.35rem; }
-        .form-error { font-size: 0.75rem; color: #dc2626; margin-top: 0.35rem; }
 
-        /* ── Search input with icon ── */
-        .form-input-icon-wrap { position: relative; }
-        .form-input-icon-wrap .form-input { padding-left: 2.5rem; }
-        .form-input-icon { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: #8c8070; pointer-events: none; }
-
-        /* ── Checkbox tiles ── */
-        .check-tile {
-            display: flex; align-items: center; gap: 0.75rem;
-            padding: 0.75rem 1rem;
-            border: 1px solid #ddd8ce; border-radius: 0.5rem;
-            cursor: pointer; background: #fff;
-            transition: border-color 0.15s, background 0.15s;
+        .form-input-readonly {
+            background: #f4f0e8;
+            color: #8c8070;
+            cursor: not-allowed;
         }
-        .check-tile:hover { border-color: #b5813a; background: #fdf8f2; }
-        .check-tile input[type="checkbox"] {
-            width: 1.1rem; height: 1.1rem;
-            accent-color: #b5813a; flex-shrink: 0;
-        }
-        .check-tile-label { font-size: 0.875rem; font-weight: 500; color: #1a1a2e; }
-        .check-tile-sub { font-size: 0.72rem; color: #8c8070; }
 
-        /* ── Buttons ── */
+        .form-input-file {
+            padding: 0.55rem 1rem;
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 6rem;
+        }
+
+        .form-hint {
+            font-size: 0.75rem;
+            color: #8c8070;
+            margin-top: 0.35rem;
+        }
+
+        .form-error {
+            font-size: 0.75rem;
+            color: #dc2626;
+            margin-top: 0.35rem;
+        }
+
+        /* Search with icon */
+        .form-input-icon-wrap {
+            position: relative;
+        }
+
+        .form-input-icon-wrap .form-input {
+            padding-left: 2.5rem;
+        }
+
+        .form-input-icon {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #8c8070;
+            pointer-events: none;
+        }
+
+        /* Buttons */
         .btn-gold {
-            display: inline-flex; align-items: center; gap: 0.5rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
             padding: 0.65rem 1.5rem;
-            background: #b5813a; color: #fff;
-            border: none; border-radius: 0.5rem;
-            font-family: 'DM Sans', sans-serif; font-size: 0.8125rem; font-weight: 600;
-            letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer;
-            transition: background 0.2s ease, box-shadow 0.2s ease;
+            background: #b5813a;
+            color: #fff;
+            border: none;
+            border-radius: 0.5rem;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s;
         }
-        .btn-gold:hover { background: #9a6e2f; box-shadow: 0 4px 14px rgba(181,129,58,0.3); }
+
+        .btn-gold:hover {
+            background: #9a6e2f;
+            box-shadow: 0 4px 14px rgba(181, 129, 58, 0.3);
+        }
+
         .btn-ghost {
-            display: inline-flex; align-items: center;
+            display: inline-flex;
+            align-items: center;
             padding: 0.65rem 1.5rem;
-            background: transparent; color: #8c8070;
-            border: 1px solid #ddd8ce; border-radius: 0.5rem;
-            font-family: 'DM Sans', sans-serif; font-size: 0.8125rem; font-weight: 500;
-            letter-spacing: 0.04em; text-decoration: none; cursor: pointer;
+            background: transparent;
+            color: #8c8070;
+            border: 1px solid #ddd8ce;
+            border-radius: 0.5rem;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            letter-spacing: 0.04em;
+            text-decoration: none;
+            cursor: pointer;
             transition: border-color 0.15s, color 0.15s;
         }
-        .btn-ghost:hover { border-color: #b5813a; color: #b5813a; }
+
+        .btn-ghost:hover {
+            border-color: #b5813a;
+            color: #b5813a;
+        }
+
+        .form-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            padding-top: 1.25rem;
+            border-top: 1px solid #ede8df;
+        }
     </style>
 
     <div class="form-root">
 
-        {{-- Page header --}}
+        {{-- Page Header --}}
         <div class="form-page-header">
-            <div class="max-w-6xl mx-auto px-5 sm:px-8 lg:px-10">
+            <div class="max-w-5xl mx-auto px-5 sm:px-8 lg:px-10">
                 <div class="form-eyebrow">
                     <span class="form-eyebrow-line"></span>
                     <span class="form-eyebrow-text">Seller Portal</span>
@@ -106,30 +231,39 @@
             </div>
         </div>
 
-        <div class="max-w-6xl mx-auto px-5 sm:px-8 lg:px-10 py-8">
-            <div class="form-card reveal">
+        <div class="max-w-5xl mx-auto px-5 sm:px-8 lg:px-10 py-8">
+            <div class="form-card">
                 <form x-data="propertyForm()" x-init="initMap()" method="POST"
-                    action="{{ route('seller.properties.store') }}" enctype="multipart/form-data"
-                    style="padding:2rem;display:flex;flex-direction:column;gap:2.25rem">
+                    action="{{ route('seller.properties.store') }}" enctype="multipart/form-data" class="form-body">
                     @csrf
 
-                    {{-- ── BASIC INFO ── --}}
-                    <div style="display:flex;flex-direction:column;gap:1.25rem">
+                    @if ($errors->any())
+                        <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+                            role="alert">
+                            <p class="font-semibold mb-2">Please fix the following:</p>
+                            <ul class="list-disc list-inside space-y-1">
+                                @foreach ($errors->all() as $message)
+                                    <li>{{ $message }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
+                    {{-- 1. BASIC INFO --}}
+                    <div class="form-section">
                         <h2 class="form-section-title">Basic Information</h2>
 
                         <div>
                             <label class="form-label">Property Title *</label>
-                            <input type="text" name="title" required maxlength="255"
-                                class="form-input"
+                            <input type="text" name="title" required maxlength="255" class="form-input"
                                 placeholder="e.g. Beautiful 3BHK Apartment in Thamel">
                             @error('title')<p class="form-error">{{ $message }}</p>@enderror
                         </div>
 
                         <div>
                             <label class="form-label">Description</label>
-                            <textarea name="description" x-model="description" rows="4"
-                                class="form-textarea"
-                                placeholder="Describe your property in detail...">{{ old('description') }}</textarea>
+                            <textarea name="description" rows="3" class="form-textarea"
+                                placeholder="Brief description of the property...">{{ old('description') }}</textarea>
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -139,6 +273,7 @@
                                     <option value="buy">For Sale</option>
                                     <option value="rent">For Rent</option>
                                 </select>
+                                @error('purpose')<p class="form-error">{{ $message }}</p>@enderror
                             </div>
                             <div>
                                 <label class="form-label">Property Type *</label>
@@ -150,33 +285,35 @@
                                     <option value="office">Office</option>
                                     <option value="warehouse">Warehouse</option>
                                 </select>
+                                @error('type')<p class="form-error">{{ $message }}</p>@enderror
                             </div>
                             <div>
                                 <label class="form-label">Category *</label>
-                                <select name="category" required class="form-select">
+                                <select name="category" x-model="category" required class="form-select">
                                     <option value="residential">Residential</option>
                                     <option value="commercial">Commercial</option>
                                     <option value="industrial">Industrial</option>
                                 </select>
+                                @error('category')<p class="form-error">{{ $message }}</p>@enderror
                             </div>
                         </div>
                     </div>
 
-                    {{-- ── PRICING & SIZE ── --}}
-                    <div style="display:flex;flex-direction:column;gap:1.25rem">
+                    {{-- 2. PRICING & SIZE --}}
+                    <div class="form-section">
                         <h2 class="form-section-title">Pricing &amp; Size</h2>
-
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
                             <div>
-                                <label class="form-label" x-text="purpose === 'rent' ? 'Monthly Rent (NPR) *' : 'Total Price (NPR) *'"></label>
-                                <input type="number" name="price" required min="1" step="0.01"
-                                    class="form-input" placeholder="e.g. 5000000">
+                                <label class="form-label"
+                                    x-text="purpose === 'rent' ? 'Monthly Rent (NPR) *' : 'Total Price (NPR) *'"></label>
+                                <input type="number" name="price" required min="1" step="0.01" class="form-input"
+                                    placeholder="e.g. 5000000">
                                 @error('price')<p class="form-error">{{ $message }}</p>@enderror
                             </div>
                             <div>
                                 <label class="form-label">Area (sq. ft) *</label>
-                                <input type="number" name="area" required min="1"
-                                    class="form-input" placeholder="e.g. 1500">
+                                <input type="number" name="area" required min="1" class="form-input"
+                                    placeholder="e.g. 1500">
                                 @error('area')<p class="form-error">{{ $message }}</p>@enderror
                             </div>
                             <div x-show="purpose === 'rent'">
@@ -188,71 +325,31 @@
                                     <option value="12">1 Year</option>
                                     <option value="24">2 Years</option>
                                 </select>
+                                @error('min_lease_months')<p class="form-error">{{ $message }}</p>@enderror
                             </div>
+                        </div>
+                        <div class="mt-5">
+                            <label class="form-label">Contact Number (buyer enquiries) *</label>
+                            <input type="text" name="contact_number" required maxlength="25" class="form-input"
+                                value="{{ old('contact_number', auth()->user()->phone ?? '') }}"
+                                placeholder="e.g. 98XXXXXXXX or +977-98XXXXXXXX">
+                            @error('contact_number')<p class="form-error">{{ $message }}</p>@enderror
                         </div>
                     </div>
 
-                    {{-- ── LOCATION ── --}}
-                    <div style="display:flex;flex-direction:column;gap:1.25rem">
-                        <h2 class="form-section-title">Location</h2>
+                    {{-- 3. PROPERTY DETAILS (type-specific) --}}
 
-                        <div>
-                            <label class="form-label">Search Location *</label>
-                            <div class="form-input-icon-wrap">
-                                <svg class="form-input-icon w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                                </svg>
-                                <input type="text" id="locationSearch" class="form-input"
-                                    placeholder="Search for location in Nepal (e.g. Thamel, Kathmandu)">
-                            </div>
-                            <p class="form-hint">Search or click on the map to set location</p>
-                        </div>
-
-                        <div id="map" style="width:100%;height:24rem;border-radius:0.5rem;border:1px solid #ddd8ce;z-index:1"></div>
-
-                        <div class="grid grid-cols-3 gap-5">
-                            <div>
-                                <label class="form-label">Location / Address *</label>
-                                <input type="text" name="location" required class="form-input"
-                                    x-model="locationAddress" placeholder="Enter or select location">
-                                @error('location')<p class="form-error">{{ $message }}</p>@enderror
-                            </div>
-                            <div>
-                                <label class="form-label">Latitude</label>
-                                <input type="text" name="latitude" readonly class="form-input form-input-readonly"
-                                    x-model="lat" placeholder="Click map to select">
-                                @error('latitude')<p class="form-error">{{ $message }}</p>@enderror
-                            </div>
-                            <div>
-                                <label class="form-label">Longitude</label>
-                                <input type="text" name="longitude" readonly class="form-input form-input-readonly"
-                                    x-model="lng" placeholder="Click map to select">
-                                @error('longitude')<p class="form-error">{{ $message }}</p>@enderror
-                            </div>
-                        </div>
-                    </div>
-
-                    {{-- ── IMAGES ── --}}
-                    <div style="display:flex;flex-direction:column;gap:1rem">
-                        <h2 class="form-section-title">Images</h2>
-                        <div>
-                            <label class="form-label">Main Property Image</label>
-                            <input type="file" name="image" accept="image/*" class="form-input form-input-file">
-                            <p class="form-hint">Upload a main image for your property (JPG, PNG, max 2 MB)</p>
-                        </div>
-                    </div>
-
-                    {{-- ── RESIDENTIAL DETAILS ── --}}
+                    {{-- Residential: Flat / House --}}
                     <div x-show="(type === 'flat' || type === 'house') && category === 'residential'" x-transition
-                        style="display:flex;flex-direction:column;gap:1.25rem">
+                        class="form-section">
                         <h2 class="form-section-title">Property Details</h2>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-5">
                             <div>
-                                <label class="form-label">Bedrooms</label>
+                                <label class="form-label">Bedrooms *</label>
                                 <input type="number" name="bedrooms" min="0" class="form-input" placeholder="e.g. 3">
                             </div>
                             <div>
-                                <label class="form-label">Bathrooms</label>
+                                <label class="form-label">Bathrooms *</label>
                                 <input type="number" name="bathrooms" min="0" class="form-input" placeholder="e.g. 2">
                             </div>
                             <div x-show="type === 'flat'">
@@ -260,16 +357,43 @@
                                 <input type="number" name="floor_no" min="0" class="form-input" placeholder="e.g. 2">
                             </div>
                             <div>
+                                <label class="form-label">Total Floors</label>
+                                <input type="number" name="total_floors" min="1" class="form-input"
+                                    placeholder="e.g. 4">
+                            </div>
+                            <div>
+                                <label class="form-label">Facing</label>
+                                <select name="facing" class="form-select">
+                                    <option value="">Select</option>
+                                    @foreach(['east', 'west', 'north', 'south', 'northeast', 'northwest', 'southeast', 'southwest'] as $dir)
+                                        <option value="{{ $dir }}">{{ ucfirst($dir) }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="form-label">Parking Spaces</label>
+                                <input type="number" name="parking_spaces" min="0" class="form-input"
+                                    placeholder="e.g. 1">
+                            </div>
+                            <div>
                                 <label class="form-label">Year Built</label>
                                 <input type="number" name="year_built" min="1900" :max="new Date().getFullYear()"
                                     class="form-input" :placeholder="'e.g. ' + new Date().getFullYear()">
                             </div>
+                            <div>
+                                <label class="form-label">Furnishing</label>
+                                <select name="furnishing" class="form-select">
+                                    <option value="">Select</option>
+                                    <option value="unfurnished">Unfurnished</option>
+                                    <option value="semi_furnished">Semi-Furnished</option>
+                                    <option value="fully_furnished">Fully Furnished</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
 
-                    {{-- ── LAND DETAILS ── --}}
-                    <div x-show="type === 'land'" x-transition
-                        style="display:flex;flex-direction:column;gap:1.25rem">
+                    {{-- Land --}}
+                    <div x-show="type === 'land'" x-transition class="form-section">
                         <h2 class="form-section-title">Land Details</h2>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-5">
                             <div>
@@ -280,24 +404,18 @@
                                 <label class="form-label">Facing</label>
                                 <select name="facing" class="form-select">
                                     <option value="">Select</option>
-                                    <option value="east">East</option>
-                                    <option value="west">West</option>
-                                    <option value="north">North</option>
-                                    <option value="south">South</option>
-                                    <option value="northeast">Northeast</option>
-                                    <option value="northwest">Northwest</option>
-                                    <option value="southeast">Southeast</option>
-                                    <option value="southwest">Southwest</option>
+                                    @foreach(['east', 'west', 'north', 'south', 'northeast', 'northwest', 'southeast', 'southwest'] as $dir)
+                                        <option value="{{ $dir }}">{{ ucfirst($dir) }}</option>
+                                    @endforeach
                                 </select>
                             </div>
                             <div>
                                 <label class="form-label">Land Shape</label>
                                 <select name="land_shape" class="form-select">
                                     <option value="">Select</option>
-                                    <option value="rectangle">Rectangle</option>
-                                    <option value="square">Square</option>
-                                    <option value="irregular">Irregular</option>
-                                    <option value="triangular">Triangular</option>
+                                    @foreach(['rectangle', 'square', 'irregular', 'triangular'] as $shape)
+                                        <option value="{{ $shape }}">{{ ucfirst($shape) }}</option>
+                                    @endforeach
                                 </select>
                             </div>
                             <div>
@@ -307,22 +425,25 @@
                         </div>
                     </div>
 
-                    {{-- ── COMMERCIAL DETAILS ── --}}
+                    {{-- Commercial / Office --}}
                     <div x-show="(type === 'commercial' || type === 'office') && category === 'commercial'" x-transition
-                        style="display:flex;flex-direction:column;gap:1.25rem">
+                        class="form-section">
                         <h2 class="form-section-title">Commercial Details</h2>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-5">
                             <div>
                                 <label class="form-label">Floor Level</label>
-                                <input type="number" name="commercial_floor_level" min="0" class="form-input" placeholder="e.g. 1">
+                                <input type="number" name="commercial_floor_level" min="0" class="form-input"
+                                    placeholder="e.g. 1">
                             </div>
                             <div>
                                 <label class="form-label">Total Floors</label>
-                                <input type="number" name="total_floors" min="0" class="form-input" placeholder="e.g. 5">
+                                <input type="number" name="total_floors" min="0" class="form-input"
+                                    placeholder="e.g. 5">
                             </div>
                             <div>
                                 <label class="form-label">Parking Spaces</label>
-                                <input type="number" name="parking_spaces" min="0" class="form-input" placeholder="e.g. 2">
+                                <input type="number" name="parking_spaces" min="0" class="form-input"
+                                    placeholder="e.g. 2">
                             </div>
                             <div>
                                 <label class="form-label">Year Built</label>
@@ -332,9 +453,8 @@
                         </div>
                     </div>
 
-                    {{-- ── WAREHOUSE / INDUSTRIAL ── --}}
-                    <div x-show="type === 'warehouse' && category === 'industrial'" x-transition
-                        style="display:flex;flex-direction:column;gap:1.25rem">
+                    {{-- Warehouse / Industrial --}}
+                    <div x-show="type === 'warehouse' && category === 'industrial'" x-transition class="form-section">
                         <h2 class="form-section-title">Industrial Details</h2>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-5">
                             <div>
@@ -343,7 +463,8 @@
                             </div>
                             <div>
                                 <label class="form-label">Loading Docks</label>
-                                <input type="number" name="loading_docks" min="0" class="form-input" placeholder="e.g. 2">
+                                <input type="number" name="loading_docks" min="0" class="form-input"
+                                    placeholder="e.g. 2">
                             </div>
                             <div>
                                 <label class="form-label">Power Supply (kVA)</label>
@@ -357,79 +478,81 @@
                         </div>
                     </div>
 
-                    {{-- ── FEATURES & AMENITIES ── --}}
-                    <div style="display:flex;flex-direction:column;gap:1.25rem">
-                        <h2 class="form-section-title">Features &amp; Amenities</h2>
+                    {{-- 4. LOCATION --}}
+                    <div class="form-section">
+                        <h2 class="form-section-title">Location</h2>
 
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <label class="check-tile">
-                                <input type="checkbox" name="parking" value="1">
-                                <div><span class="check-tile-label">Parking</span><span class="check-tile-sub" style="display:block">Available</span></div>
-                            </label>
-                            <label class="check-tile">
-                                <input type="checkbox" name="water" value="1">
-                                <div><span class="check-tile-label">Water Supply</span><span class="check-tile-sub" style="display:block">24/7 Available</span></div>
-                            </label>
-                            <label class="check-tile">
-                                <input type="checkbox" name="electricity" value="1">
-                                <div><span class="check-tile-label">Electricity</span><span class="check-tile-sub" style="display:block">Grid / Backup</span></div>
-                            </label>
-                            <label class="check-tile">
-                                <input type="checkbox" name="security" value="1">
-                                <div><span class="check-tile-label">Security</span><span class="check-tile-sub" style="display:block">Guarded</span></div>
-                            </label>
+                        <div>
+                            <label class="form-label">Search Location *</label>
+                            <div class="form-input-icon-wrap">
+                                <svg class="form-input-icon w-5 h-5" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                <input type="text" id="locationSearch" class="form-input"
+                                    placeholder="Search for location in Nepal (e.g. Thamel, Kathmandu)">
+                            </div>
+                            <p class="form-hint">Search or click on the map to pin the exact location</p>
                         </div>
 
-                        {{-- Residential specific --}}
-                        <div x-show="category === 'residential'" class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <label class="check-tile"><input type="checkbox" name="garden" value="1"><span class="check-tile-label">Garden</span></label>
-                            <label class="check-tile"><input type="checkbox" name="balcony" value="1"><span class="check-tile-label">Balcony</span></label>
-                            <label class="check-tile"><input type="checkbox" name="gym" value="1"><span class="check-tile-label">Gym</span></label>
-                            <label class="check-tile"><input type="checkbox" name="lift" value="1"><span class="check-tile-label">Lift / Elevator</span></label>
+                        <div id="map"
+                            style="width:100%;height:22rem;border-radius:0.5rem;border:1px solid #ddd8ce;z-index:1">
                         </div>
 
-                        {{-- Commercial/Industrial specific --}}
-                        <div x-show="category !== 'residential'" class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <label class="check-tile"><input type="checkbox" name="ac" value="1"><span class="check-tile-label">Air Conditioning</span></label>
-                            <label class="check-tile"><input type="checkbox" name="fire_safety" value="1"><span class="check-tile-label">Fire Safety</span></label>
-                            <label class="check-tile"><input type="checkbox" name="internet" value="1"><span class="check-tile-label">Internet Ready</span></label>
-                            <label class="check-tile"><input type="checkbox" name="loading_area" value="1"><span class="check-tile-label">Loading Area</span></label>
-                        </div>
-                    </div>
-
-                    {{-- ── AVAILABILITY ── --}}
-                    <div style="display:flex;flex-direction:column;gap:1.25rem">
-                        <h2 class="form-section-title">Availability</h2>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div class="grid grid-cols-3 gap-5">
                             <div>
-                                <label class="form-label">Available From</label>
-                                <input type="date" name="available_from" class="form-input">
+                                <label class="form-label">Address *</label>
+                                <input type="text" name="location" required class="form-input" x-model="locationAddress"
+                                    placeholder="Enter or select location">
+                                @error('location')<p class="form-error">{{ $message }}</p>@enderror
+                            </div>
+                            <div>
+                                <label class="form-label">Latitude</label>
+                                <input type="text" name="latitude" readonly class="form-input form-input-readonly"
+                                    x-model="lat" placeholder="Click map to select">
+                            </div>
+                            <div>
+                                <label class="form-label">Longitude</label>
+                                <input type="text" name="longitude" readonly class="form-input form-input-readonly"
+                                    x-model="lng" placeholder="Click map to select">
                             </div>
                         </div>
                     </div>
 
-                    {{-- ── OWNERSHIP ── --}}
-                    <div style="display:flex;flex-direction:column;gap:1.25rem">
-                        <h2 class="form-section-title">Ownership Information</h2>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <div>
-                                <label class="form-label">Ownership Type</label>
-                                <select name="ownership_type" class="form-select">
-                                    <option value="">Select</option>
-                                    <option value="freehold">Freehold</option>
-                                    <option value="leasehold">Leasehold</option>
-                                    <option value="cooperative">Cooperative</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="form-label">Contact Number *</label>
-                                <input type="tel" name="contact_number" required class="form-input" placeholder="e.g. 9841234567">
+                    {{-- 5. IMAGES --}}
+                    <div class="form-section">
+                        <h2 class="form-section-title">Images</h2>
+                        <div>
+                            <label class="form-label">Main Property Image *</label>
+                            <input type="file" name="image" accept="image/*" required class="form-input form-input-file">
+                            <p class="form-hint">JPG or PNG, max 2 MB (required)</p>
+                            @error('image')<p class="form-error">{{ $message }}</p>@enderror
+                        </div>
+                        <div x-data="galleryUpload()">
+                            <label class="form-label">Additional Images</label>
+                            <input type="file" name="gallery[]" accept="image/*" multiple x-ref="galleryInput"
+                                @change="onFilesChange($event)"
+                                class="form-input form-input-file">
+                            <input type="hidden" name="gallery_order" :value="JSON.stringify(order)">
+                            <p class="form-hint">Upload up to 10 photos to showcase your property</p>
+                            <div class="grid grid-cols-4 gap-3 mt-3">
+                                <template x-for="(p, index) in previews" :key="p.id">
+                                    <div class="relative group border rounded p-1 bg-white"
+                                        draggable="true"
+                                        @dragstart="dragStart(index)"
+                                        @dragover.prevent
+                                        @drop="dropAt(index)">
+                                        <img :src="p.url" class="w-full h-20 object-cover rounded" />
+                                        <div class="text-[10px] text-center mt-1 text-[#8c8070]">Drag to reorder</div>
+                                    </div>
+                                </template>
                             </div>
                         </div>
                     </div>
 
-                    {{-- ── SUBMIT ── --}}
-                    <div style="display:flex;justify-content:flex-end;gap:1rem;padding-top:1.25rem;border-top:1px solid #ede8df">
+                    {{-- SUBMIT --}}
+                    <div class="form-footer">
                         <a href="{{ route('seller.properties.index') }}" class="btn-ghost">Cancel</a>
                         <button type="submit" class="btn-gold">List Property</button>
                     </div>
@@ -439,7 +562,7 @@
         </div>
     </div>
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
@@ -448,34 +571,29 @@
                 type: 'flat',
                 purpose: 'buy',
                 category: 'residential',
-                description: '',
-                lat: '{{ old('latitude', '') }}',
-                lng: '{{ old('longitude', '') }}',
-                locationAddress: '{{ old('location', '') }}',
+                lat: '{{ old("latitude", "") }}',
+                lng: '{{ old("longitude", "") }}',
+                locationAddress: '{{ old("location", "") }}',
                 map: null,
                 marker: null,
 
                 initMap() {
-                    const defaultLat = 27.7172, defaultLng = 85.3240;
-                    this.map = L.map('map').setView([defaultLat, defaultLng], 12);
+                    this.map = L.map('map').setView([27.7172, 85.3240], 12);
                     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
                         maxZoom: 19
                     }).addTo(this.map);
-                    this.map.on('click', (e) => { this.setLocation(e.latlng.lat, e.latlng.lng); });
+                    this.map.on('click', (e) => this.setLocation(e.latlng.lat, e.latlng.lng));
                     this.initSearch();
-                    @if(old('latitude') && old('longitude'))
-                        this.setLocation({{ old('latitude') }}, {{ old('longitude') }});
-                    @endif
                 },
 
                 initSearch() {
-                    const searchInput = document.getElementById('locationSearch');
-                    if (!searchInput) return;
-                    let timeout = null;
-                    searchInput.addEventListener('input', (e) => {
-                        clearTimeout(timeout);
-                        timeout = setTimeout(() => { this.searchLocation(e.target.value); }, 500);
+                    const input = document.getElementById('locationSearch');
+                    if (!input) return;
+                    let timer;
+                    input.addEventListener('input', (e) => {
+                        clearTimeout(timer);
+                        timer = setTimeout(() => this.searchLocation(e.target.value), 500);
                     });
                 },
 
@@ -483,12 +601,12 @@
                     if (!query || query.length < 3) return;
                     try {
                         const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=np&limit=1`);
-                        const data = await res.json();
-                        if (data && data.length > 0) {
-                            const lat = parseFloat(data[0].lat), lon = parseFloat(data[0].lon);
+                        const [place] = await res.json();
+                        if (place) {
+                            const lat = parseFloat(place.lat), lon = parseFloat(place.lon);
                             this.setLocation(lat, lon);
                             this.map.setView([lat, lon], 15);
-                            this.locationAddress = data[0].display_name;
+                            this.locationAddress = place.display_name;
                         }
                     } catch (e) { console.error('Search error:', e); }
                 },
@@ -498,6 +616,39 @@
                     if (this.marker) this.map.removeLayer(this.marker);
                     this.marker = L.marker([lat, lng]).addTo(this.map).bindPopup('Property Location').openPopup();
                     this.map.setView([lat, lng], 15);
+                }
+            };
+        }
+
+        function galleryUpload() {
+            return {
+                files: [],
+                previews: [],
+                order: [],
+                dragging: null,
+                onFilesChange(event) {
+                    this.files = Array.from(event.target.files);
+                    this.previews = this.files.map((f, i) => ({ id: i, url: URL.createObjectURL(f) }));
+                    this.order = this.files.map((_, i) => i);
+                },
+                dragStart(index) {
+                    this.dragging = index;
+                },
+                dropAt(index) {
+                    if (this.dragging === null || this.dragging === index) return;
+                    const movedPreview = this.previews.splice(this.dragging, 1)[0];
+                    this.previews.splice(index, 0, movedPreview);
+                    const movedOrder = this.order.splice(this.dragging, 1)[0];
+                    this.order.splice(index, 0, movedOrder);
+                    this.dragging = null;
+                    this.rebuildFileList();
+                },
+                rebuildFileList() {
+                    const dt = new DataTransfer();
+                    this.order.forEach((fileIndex) => {
+                        if (this.files[fileIndex]) dt.items.add(this.files[fileIndex]);
+                    });
+                    this.$refs.galleryInput.files = dt.files;
                 }
             }
         }
