@@ -9,17 +9,12 @@ Alpine.start();
 window.showRealtimeToast = function (message) {
     const el = document.createElement('div');
     el.textContent = message;
-    el.style.position = 'fixed';
-    el.style.bottom = '20px';
-    el.style.right = '20px';
-    el.style.background = '#1a1a2e';
-    el.style.color = '#faf7f2';
-    el.style.padding = '10px 14px';
-    el.style.borderRadius = '8px';
-    el.style.border = '1px solid #b5813a';
-    el.style.zIndex = '9999';
+    el.className = 'fixed bottom-5 right-5 bg-[#1a1a2e] text-[#faf7f2] px-3.5 py-2.5 rounded-lg border border-[#b5813a] z-[9999] shadow-lg transition-opacity duration-300';
     document.body.appendChild(el);
-    setTimeout(() => el.remove(), 3500);
+    setTimeout(() => {
+        el.classList.add('opacity-0');
+        setTimeout(() => el.remove(), 300);
+    }, 3500);
 };
 
 window.bindRealtimeChannels = function ({ sellerId = null, ownerId = null } = {}) {

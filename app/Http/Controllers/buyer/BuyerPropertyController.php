@@ -9,16 +9,14 @@ use App\Models\Property;
 use App\Models\PropertyView;
 use App\Models\Favorite;
 use Illuminate\Support\Facades\Auth;
-use App\Services\PropertySearchService;
+use App\Services\UserSuggestionService;
 use App\Services\PropertyRecommendationService;
-use App\Services\CosineSimilarityService;
 
 class BuyerPropertyController extends Controller
 {
     public function __construct(
-        protected PropertySearchService $searchService,
         protected PropertyRecommendationService $recommendationService,
-        protected CosineSimilarityService $cosineService,
+        protected UserSuggestionService $userSuggestionService,
     ) {
     }
 
@@ -81,8 +79,26 @@ class BuyerPropertyController extends Controller
 
         $recentlyViewed = $this->getRecentlyViewed($property);
         $recommendations = $this->recommendationService->getSimilarProperties($property, 6, Auth::id());
+        $recommendationSectionTitle = 'Similar Properties';
 
-        return view('buyer.properties.show', compact('property', 'recommendations', 'recentlyViewed'));
+        if ($recommendations->isEmpty()) {
+            $recommendations = Property::approved()
+                ->where('id', '!=', $property->id)
+                ->where('purpose', $property->purpose)
+                ->orderByDesc('is_featured')
+                ->orderByDesc('views_count')
+                ->latest()
+                ->take(6)
+                ->get()
+                ->each(function ($p) {
+                    $p->similarity_score = null;
+                    $p->recommendation_reason = 'Popular choice you may like';
+                });
+
+            $recommendationSectionTitle = 'You May Like';
+        }
+
+        return view('buyer.properties.show', compact('property', 'recommendations', 'recentlyViewed', 'recommendationSectionTitle'));
     }
 
     /*
@@ -111,121 +127,18 @@ class BuyerPropertyController extends Controller
     /*
     |--------------------------------------------------------------------------
     | Personalized Suggestions
-    |
-    | Flow:
-    |   1. Determine which strategy has data (favorites → views → session → city → trending)
-    |   2. Extract SQL preference filters from that data (loose — cosine does fine ranking)
-    |   3. Call recommendationService->personalized($preferences, 12, $userId)
-    |      └── Stage 1: SQL loose filter → wide candidate pool
-    |      └── Stage 2: Numeric cosine (buildUserVector → rankForUser) → top 12 with scores
-    |   4. If user also typed ?q= → re-rank the 12 by text cosine (Engine A) on top
-    |   5. Pass to blade: properties with ->similarity_score, $strategyLabel
     |--------------------------------------------------------------------------
     */
 
     public function suggestions(Request $request)
     {
         $user = Auth::user();
-        $properties = collect();
-        $strategyNum = 5;
-
-        // ── Strategy 1: Favorites ──────────────────────────────────────────
-        if ($user) {
-            $favorites = Favorite::where('user_id', $user->id)
-                ->with('property')
-                ->latest()
-                ->take(20)
-                ->get()
-                ->pluck('property')
-                ->filter();
-
-            if ($favorites->isNotEmpty()) {
-                $properties = $this->recommendationService->personalized(
-                    preferences: $this->extractPreferences($favorites),
-                    limit: 12,
-                    userId: $user->id,
-                );
-                $strategyNum = 1;
-            }
-        }
-
-        // ── Strategy 2: Recently viewed (DB) ──────────────────────────────
-        if ($properties->isEmpty() && $user) {
-            $views = PropertyView::where(function ($q) use ($user) {
-                $q->where('buyer_id', $user->id)->orWhere('user_id', $user->id);
-            })
-                ->with('property')
-                ->orderByDesc('viewed_at')
-                ->take(20)
-                ->get()
-                ->pluck('property')
-                ->filter();
-
-            if ($views->isNotEmpty()) {
-                $properties = $this->recommendationService->personalized(
-                    preferences: $this->extractPreferences($views),
-                    limit: 12,
-                    userId: $user->id,
-                );
-                $strategyNum = 2;
-            }
-        }
-
-        // ── Strategy 3: Recently viewed (session — guests) ─────────────────
-        if ($properties->isEmpty() && !$user) {
-            $sessionIds = session()->get('recently_viewed', []);
-
-            if (!empty($sessionIds)) {
-                $sessionProps = Property::whereIn('id', $sessionIds)->approved()
-                    ->get()
-                    ->sortBy(fn($p) => array_search($p->id, $sessionIds))
-                    ->values();
-
-                if ($sessionProps->isNotEmpty()) {
-                    // For guests: no userId → Stage 2 skips numeric cosine,
-                    // returns SQL-scored pool. Still better than random.
-                    $properties = $this->recommendationService->personalized(
-                        preferences: $this->extractPreferences($sessionProps),
-                        limit: 12,
-                        userId: null,
-                    );
-                    $strategyNum = 3;
-                }
-            }
-        }
-
-        // ── Strategy 4: User city ──────────────────────────────────────────
-        if ($properties->isEmpty() && $user?->city) {
-            $properties = Property::approved()
-                ->where('location', 'LIKE', "%{$user->city}%")
-                ->orderBy('views_count', 'desc')
-                ->take(12)
-                ->get()
-                ->each(fn($p) => $p->similarity_score = null);
-            $strategyNum = 4;
-        }
-
-        // ── Strategy 5: Trending fallback ─────────────────────────────────
-        if ($properties->isEmpty()) {
-            $properties = Property::approved()
-                ->orderBy('views_count', 'desc')
-                ->take(12)
-                ->get()
-                ->each(fn($p) => $p->similarity_score = null);
-            $strategyNum = 5;
-        }
-
-        // ── Text cosine re-rank (if user typed ?q=) ────────────────────────
-        // Engine A runs on TOP of Engine B results.
-        // The numeric cosine already ordered by behavior; text cosine refines
-        // within that by the typed query.
         $urlQuery = $request->get('q');
-        if ($urlQuery && $properties->isNotEmpty()) {
-            $properties = $this->cosineService->rerank($properties, $urlQuery);
-            // rerank() sets ->cosine_score AND ->similarity_score
-        }
 
-        $strategyLabel = $this->resolveStrategyLabel($strategyNum, $urlQuery);
+        $result = $this->userSuggestionService->getSuggestions($user, $urlQuery);
+
+        $properties = $result['properties'];
+        $strategyLabel = $result['strategyLabel'];
 
         return view('buyer.suggestions.index', compact('properties', 'strategyLabel'));
     }
@@ -249,8 +162,12 @@ class BuyerPropertyController extends Controller
 
         $properties = $this->recommendationService->withinRadius($lat, $lng, $radius);
 
+        // Text search handling within nearby properties (Generic PHP Filter)
         if ($query && $properties->isNotEmpty()) {
-            $properties = $this->cosineService->rerank($properties, $query);
+            $properties = $properties->filter(function ($property) use ($query) {
+                return stripos($property->title, $query) !== false 
+                    || stripos($property->location, $query) !== false;
+            })->values();
         }
 
         return view('buyer.properties.nearby', compact('properties', 'lat', 'lng', 'radius', 'query'));
@@ -265,7 +182,7 @@ class BuyerPropertyController extends Controller
     public function search(Request $request): JsonResponse
     {
         $data = $request->only(['q', 'purpose', 'type', 'category', 'min_price', 'max_price', 'bedrooms', 'bathrooms', 'sort', 'per_page']);
-        $results = $this->searchService->search($data);
+        $results = $this->recommendationService->search($data);
 
         return response()->json([
             'properties' => $results->items(),
@@ -303,48 +220,7 @@ class BuyerPropertyController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    /**
-     * Build SQL preference filters from a collection of Property models.
-     * These are LOOSE filters — cosine does the fine-grained ranking.
-     */
-    private function extractPreferences(\Illuminate\Support\Collection $properties): array
-    {
-        return [
-            'purpose' => $this->getMostFrequent($properties, 'purpose'),
-            'type' => $this->getMostFrequent($properties, 'type'),
-            'category' => $this->getMostFrequent($properties, 'category'),
-            // Widen price range: cosine handles properties priced slightly outside
-            'min_price' => $properties->min('price') * 0.7,
-            'max_price' => $properties->max('price') * 1.3,
-            'bedrooms' => $this->getMostFrequent($properties, 'bedrooms'),
-        ];
-    }
 
-    private function getMostFrequent(\Illuminate\Support\Collection $collection, string $field): mixed
-    {
-        $values = $collection->pluck($field)->filter();
-        if ($values->isEmpty())
-            return null;
-
-        $counts = array_count_values($values->toArray());
-        arsort($counts);
-        return key($counts);
-    }
-
-    private function resolveStrategyLabel(int $strategy, ?string $urlQuery): string
-    {
-        if ($urlQuery) {
-            return 'Search-matched & cosine ranked';
-        }
-
-        return match ($strategy) {
-            1 => 'Ranked by your saved favourites',
-            2 => 'Ranked by your recently viewed',
-            3 => 'Based on your browsing history',
-            4 => 'Properties near your city',
-            default => 'Trending properties',
-        };
-    }
 
     private function extractFilters(Request $request, array $excludes = []): array
     {

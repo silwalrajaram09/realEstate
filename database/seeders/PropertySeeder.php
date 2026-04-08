@@ -13,6 +13,9 @@ class PropertySeeder extends Seeder
      */
     public function run(): void
     {
-        //Property::factory()->count(15)->create();
+        Property::factory()->count(50)->create([
+            'status' => 'approved',
+            'listing_status' => 'available'
+        ]);
     }
 }

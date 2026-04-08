@@ -482,7 +482,10 @@
 
             </div>
 
-            @include('buyer.properties.partials._recommended', ['recommendations' => $recommendations ?? collect()])
+            @include('buyer.properties.partials._recommended', [
+                'recommendations' => $recommendations ?? collect(),
+                'sectionTitle' => $recommendationSectionTitle ?? 'Similar Properties'
+            ])
 
         </div>
     </div>
