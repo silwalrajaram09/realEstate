@@ -104,10 +104,94 @@ class PropertyRecommendationService
 
     /*
     |--------------------------------------------------------------------------
+    | Hybrid Scoring System
+    |--------------------------------------------------------------------------
+    */
+    private function getVector(Property $p): array
+    {
+        return [
+            log(max($p->price, 1)),
+            sqrt((float)($p->area ?? 0)),
+            ($p->bedrooms ?? 0) / 10,
+            ($p->bathrooms ?? 0) / 10,
+            $p->purpose === 'buy' ? 1.0 : 0.0,
+            $p->type === 'house' ? 1.0 : 0.0,
+            $p->category === 'residential' ? 1.0 : 0.0,
+            (float)($p->latitude ?? 0),
+            (float)($p->longitude ?? 0),
+        ];
+    }
+
+    private function cosineSimilarity(Property $p1, Property $p2): float
+    {
+        $v1 = $this->getVector($p1);
+        $v2 = $this->getVector($p2);
+
+        $dot = 0.0;
+        $mag1 = 0.0;
+        $mag2 = 0.0;
+
+        for ($i = 0; $i < count($v1); $i++) {
+            $dot += $v1[$i] * $v2[$i];
+            $mag1 += pow($v1[$i], 2);
+            $mag2 += pow($v2[$i], 2);
+        }
+
+        $mag1 = sqrt($mag1);
+        $mag2 = sqrt($mag2);
+
+        if ($mag1 == 0 || $mag2 == 0) {
+            return 0.0;
+        }
+
+        return max(0, $dot / ($mag1 * $mag2));
+    }
+
+    public function calculateCollaborative(int $userId, int $propertyId): float
+    {
+        $userViews = \App\Models\PropertyView::where('user_id', $userId)->pluck('property_id');
+        if ($userViews->count() < 3) return 0.0;
+
+        $otherUsers = \App\Models\PropertyView::where('property_id', $propertyId)
+            ->where('user_id', '!=', $userId)
+            ->distinct()
+            ->pluck('user_id');
+
+        if ($otherUsers->isEmpty()) return 0.0;
+
+        $overlapCount = \App\Models\PropertyView::whereIn('user_id', $otherUsers)
+            ->whereIn('property_id', $userViews)
+            ->distinct('user_id')
+            ->count();
+
+        $score = $overlapCount / $otherUsers->count();
+        return min(1.0, $score * 1.2); // slight boost
+    }
+
+    public function calculatePopularity(Property $property): float
+    {
+        $views = $property->views_count ?? 0;
+        $score = $views > 0 ? log10($views + 1) / 5 : 0; // Normalize assuming typical high views ~10^5
+
+        // Recency boost (<30 days gets up to +0.2)
+        if ($property->created_at && $property->created_at->diffInDays(now()) < 30) {
+            $score += 0.2;
+        }
+
+        return min(1.0, max(0.0, $score));
+    }
+
+    private function hybridScore(float $cosine, float $collab, float $pop): float
+    {
+        return 0.5 * $cosine + 0.3 * $collab + 0.2 * $pop;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | Similar Properties
     |--------------------------------------------------------------------------
     */
-    public function getSimilarProperties(Property $property, int $limit = 6): Collection
+    public function getSimilarProperties(Property $property, ?int $userId = null, int $limit = 6): Collection
     {
         $query = Property::query()
             ->approved()
@@ -138,20 +222,22 @@ class PropertyRecommendationService
                 ->orderBy('distance');
         }
 
-        $candidates = $query->limit($limit * 3)->get();
+        $candidates = $query->limit($limit * 5)->get();
 
-        // Re-rank similar properties by cosine similarity to the source property's text
-        $referenceText = implode(' ', [
-            $property->title ?? '',
-            $property->location ?? '',
-            $property->description ?? '',
-        ]);
+        $candidates->transform(function ($candidate) use ($property, $userId) {
+            $cosine = $this->cosineSimilarity($property, $candidate);
+            $collab = $userId ? $this->calculateCollaborative($userId, $candidate->id) : 0.0;
+            $pop    = $this->calculatePopularity($candidate);
 
-        if (trim($referenceText) !== '') {
-            return $this->cosine->rerank($candidates, $referenceText)->take($limit);
-        }
+            $candidate->hybrid_content_score = round($cosine, 4);
+            $candidate->hybrid_collab_score  = round($collab, 4);
+            $candidate->hybrid_pop_score     = round($pop, 4);
+            $candidate->hybrid_score         = round($this->hybridScore($cosine, $collab, $pop), 4);
 
-        return $candidates->take($limit);
+            return $candidate;
+        });
+
+        return $candidates->sortByDesc('hybrid_score')->take($limit)->values();
     }
 
     /*

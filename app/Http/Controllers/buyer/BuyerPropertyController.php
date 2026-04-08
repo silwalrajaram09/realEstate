@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Services\PropertySearchService;
 use App\Services\PropertyRecommendationService;
 use App\Services\Cosinesimilarityservice;
+use App\Services\UserSuggestionService;
 
 class BuyerPropertyController extends Controller
 {
@@ -19,6 +20,7 @@ class BuyerPropertyController extends Controller
         protected PropertySearchService $searchService,
         protected PropertyRecommendationService $recommendationService,
         protected Cosinesimilarityservice $cosineService,
+        protected UserSuggestionService $suggestionService,
     ) {}
 
     /*
@@ -78,7 +80,7 @@ class BuyerPropertyController extends Controller
         $this->trackView($property);
 
         $recentlyViewedProperties = $this->getRecentlyViewed($property);
-        $recommendations          = $this->recommendationService->getSimilarProperties($property);
+        $recommendations          = $this->recommendationService->getSimilarProperties($property, Auth::id());
 
         return view('buyer.properties.show', [
             'property'        => $property,
@@ -123,86 +125,15 @@ class BuyerPropertyController extends Controller
 
     public function suggestions(Request $request)
     {
-        $user       = Auth::user();
-        $properties = collect();
-
-        // ── Strategy 1: Favorites (strongest signal) ──────────────────────
-        if ($user) {
-            $favorites = Favorite::where('user_id', $user->id)
-                ->with('property')
-                ->latest()
-                ->take(5)
-                ->get()
-                ->pluck('property')
-                ->filter();
-
-            if ($favorites->isNotEmpty()) {
-                $preferences = $this->extractPreferences($favorites);
-                $properties  = $this->recommendationService->personalized($preferences, 12);
-            }
-        }
-
-        // ── Strategy 2: Recently viewed — DB (strong signal) ──────────────
-        if ($properties->isEmpty() && $user) {
-            $recentViews = PropertyView::where('user_id', $user->id)
-                ->with('property')
-                ->latest()
-                ->take(10)
-                ->get()
-                ->pluck('property')
-                ->filter();
-
-            if ($recentViews->isNotEmpty()) {
-                $preferences = $this->extractPreferences($recentViews);
-                $properties  = $this->recommendationService->personalized($preferences, 12);
-            }
-        }
-
-        // ── Strategy 3: Recently viewed — session (guests) ────────────────
-        if ($properties->isEmpty() && !$user) {
-            $sessionIds = session()->get('recently_viewed', []);
-
-            if (!empty($sessionIds)) {
-                $sessionViewed = Property::whereIn('id', $sessionIds)
-                    ->approved()
-                    ->get()
-                    ->sortBy(fn($p) => array_search($p->id, $sessionIds))
-                    ->values();
-
-                if ($sessionViewed->isNotEmpty()) {
-                    $preferences = $this->extractPreferences($sessionViewed);
-                    $properties  = $this->recommendationService->personalized($preferences, 12);
-                }
-            }
-        }
-
-        // ── Strategy 4: User city ─────────────────────────────────────────
-        if ($properties->isEmpty() && $user && $user->city) {
-            $properties = Property::approved()
-                ->where('location', 'LIKE', "%{$user->city}%")
-                ->inRandomOrder()
-                ->take(12)
-                ->get();
-        }
-
-        // ── Strategy 5: Trending fallback ─────────────────────────────────
-        if ($properties->isEmpty()) {
-            $properties = Property::approved()
-                ->orderBy('views_count', 'desc')
-                ->take(12)
-                ->get();
-        }
-
-        // ── Cosine re-rank if user typed a text query ──────────────────────
+        $user  = Auth::user();
         $query = $request->get('q');
-        if ($query && $properties->isNotEmpty()) {
-            $properties = $this->cosineService->rerank($properties, $query);
-        }
+        
+        $result = $this->suggestionService->getSuggestions($user, $query);
 
-        // Label shown in the blade to explain what produced the results
-        $strategyLabel = $this->resolveStrategyLabel($user, $query);
-
-        return view('buyer.suggestions.index', compact('properties', 'strategyLabel'));
+        return view('buyer.suggestions.index', [
+            'properties' => $result['properties'],
+            'strategyLabel' => $result['strategyLabel']
+        ]);
     }
 
     /*
@@ -381,7 +312,7 @@ class BuyerPropertyController extends Controller
             $recentlyViewed = session()->get('recently_viewed', []);
             $recentlyViewed = array_filter($recentlyViewed, fn($id) => $id != $property->id);
             array_unshift($recentlyViewed, $property->id);
-            session()->put('recently_viewed', array_slice($recentlyViewed, 0, 10));
+            session()->put('recently_viewed', array_slice($recentlyViewed, 0, 5));
         }
     }
 
@@ -398,7 +329,7 @@ class BuyerPropertyController extends Controller
                 ->orderBy('property_views.created_at', 'desc')
                 ->select('properties.*')
                 ->distinct()
-                ->take(10)
+                ->take(5)
                 ->get();
         }
 

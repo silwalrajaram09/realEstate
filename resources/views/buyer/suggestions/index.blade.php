@@ -66,8 +66,8 @@
 
                     {{-- ── Image ── --}}
                     <div class="prop-img">
-                        @if($property->image)
-                            <img src="{{ asset('images/' . $property->image) }}" alt="{{ $property->title }}">
+                        @if($property->image_url)
+                            <img src="{{ $property->image_url }}" alt="{{ $property->title }}">
                         @else
                             <div class="prop-img-placeholder">
                                 <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="#c9a96e" stroke-width="1">
@@ -80,20 +80,7 @@
                         <span class="prop-badge prop-badge-purpose">{{ ucfirst($property->purpose) }}</span>
                         <span class="prop-badge-type">{{ ucfirst($property->type) }}</span>
 
-                        {{--
-                            FIX: isset() returns false for 0.0 (falsy), so use !== null check.
-                            Also cap at 100% in case the service returns a score slightly > 1.
-                        --}}
-                        @php
-                            $score        = $property->similarity_score ?? null;
-                            $scorePercent = $score !== null ? min(100, (int) round($score * 100)) : null;
-                        @endphp
-
-                        @if($scorePercent !== null)
-                            <div class="prop-score-bar">
-                                <div class="prop-score-fill" style="width: {{ $scorePercent }}%"></div>
-                            </div>
-                        @endif
+                        {{-- Score display removed, we will use reason pills below instead --}}
                     </div>
 
                     {{-- ── Body ── --}}
@@ -156,18 +143,30 @@
                         </div>
 
                         {{--
-                            NEW: Match percentage pill in the card body.
-                            Only shown when the cosine service attaches similarity_score
-                            to the model (e.g. after rerank() is called with a query).
+                            HYBRID RECOMMENDATION REASONS
                         --}}
-                        @if($scorePercent !== null)
-                            <div class="prop-match-pill">
-                                <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-                                </svg>
-                                {{ $scorePercent }}% match
-                            </div>
-                        @endif
+                        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.65rem;">
+                            @if(isset($property->hybrid_score))
+                                <div class="prop-match-pill" style="background:#fdf6ec; color:#9a7340; border-color:#f0e0c0;">
+                                    ⭐ {{ round($property->hybrid_score * 100) }}% Hybrid
+                                </div>
+                            @endif
+                            @if(isset($property->hybrid_content_score) && $property->hybrid_content_score > 0.3)
+                                <div class="prop-match-pill" style="background:#e2e8f0; color:#4a5568; border-color:#cbd5e1;">
+                                    🎯 Content Match
+                                </div>
+                            @endif
+                            @if(isset($property->hybrid_collab_score) && $property->hybrid_collab_score > 0.3)
+                                <div class="prop-match-pill" style="background:#ebf8ff; color:#2b6cb0; border-color:#bee3f8;">
+                                    👥 Users Like You
+                                </div>
+                            @endif
+                            @if(isset($property->hybrid_pop_score) && $property->hybrid_pop_score > 0.3)
+                                <div class="prop-match-pill" style="background:#fff5f5; color:#c53030; border-color:#fed7d7;">
+                                    🔥 Trending
+                                </div>
+                            @endif
+                        </div>
 
                     </div>
                 </div>
