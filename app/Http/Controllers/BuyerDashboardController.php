@@ -8,6 +8,7 @@ use App\Models\PropertyView;
 use App\Models\Favorite;
 use App\Services\PropertyRecommendationService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class BuyerDashboardController extends Controller
 {
@@ -51,14 +52,23 @@ class BuyerDashboardController extends Controller
         $recentlyViewed = collect();
         if ($user) {
             // Get from database for logged-in users
-            $recentlyViewed = Property::join('property_views', 'properties.id', '=', 'property_views.property_id')
-                ->where('property_views.user_id', $user->id)
-                ->where('properties.status', 'approved')
-                ->orderBy('property_views.created_at', 'desc')
-                ->select('properties.*')
-                ->distinct()
+            $recentViewIds = PropertyView::where('user_id', $user->id)
+                ->select('property_id', DB::raw('MAX(created_at) as last_viewed_at'))
+                ->groupBy('property_id')
+                ->orderBy('last_viewed_at', 'desc')
                 ->take(6)
-                ->get();
+                ->pluck('property_id');
+
+            if ($recentViewIds->isNotEmpty()) {
+                $recentlyViewed = Property::whereIn('id', $recentViewIds)
+                    ->approved()
+                    ->get()
+                    ->sortBy(function ($prop) use ($recentViewIds) {
+                        return array_search($prop->id, $recentViewIds->toArray());
+                    })->values();
+            } else {
+                $recentlyViewed = collect();
+            }
         } else {
             // Get from session for guests
             $recentlyViewedIds = session()->get('recently_viewed', []);

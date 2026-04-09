@@ -79,7 +79,7 @@
                     </div>
                     <h3 style="font-family:'Cormorant Garamond',serif; font-size:1.5rem; font-weight:600; color:#0f0f0f; margin-bottom:0.75rem;">For Buyers</h3>
                     <p style="color:#6b5e52; font-size:0.925rem; font-weight:300; line-height:1.75; margin-bottom:1.5rem;">
-                        Get AI-matched property suggestions based on your budget, location preferences, and lifestyle needs.
+                        Get matched property suggestions based on your budget, location preferences, and lifestyle needs.
                     </p>
                     <a href="{{ route('buyer.properties') }}"
                        style="font-size:0.75rem; letter-spacing:0.1em; text-transform:uppercase; font-weight:600;
@@ -119,7 +119,7 @@
                                 border:1px solid #c9a96e44; display:flex; align-items:center; justify-content:center; margin-bottom:1.5rem;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#c9a96e" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
                     </div>
-                    <h3 style="font-family:'Cormorant Garamond',serif; font-size:1.5rem; font-weight:600; color:#0f0f0f; margin-bottom:0.75rem;">AI Suggestions</h3>
+                    <h3 style="font-family:'Cormorant Garamond',serif; font-size:1.5rem; font-weight:600; color:#0f0f0f; margin-bottom:0.75rem;"> Suggestions</h3>
                     <p style="color:#6b5e52; font-size:0.925rem; font-weight:300; line-height:1.75; margin-bottom:1.5rem;">
                         Our intelligent engine learns your preferences and surfaces curated recommendations you'll actually love.
                     </p>

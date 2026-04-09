@@ -28,46 +28,67 @@ class PropertyRecommendationService
     ];
 
     private const EARTH_RADIUS    = 6371; // km
-    private const LOCATION_RADIUS = 50;   // km
+    private const LOCATION_RADIUS = 10;   // km
+
+    /**
+     * Calculate a match score between a user and a property.
+     * Used for lead scoring in enquiries.
+     */
+    public function calculateMatchScore($user, Property $property): float
+    {
+        $collab = $this->calculateCollaborative($user->id, $property->id);
+        $pop = $this->calculatePopularity($property);
+        
+        // We reuse the scoring weights
+        $baseScore = (0.5 * 1.0) + (0.3 * $collab) + (0.2 * $pop); 
+        
+        return min(max($baseScore, 0.0), 1.0);
+    }
 
     public function __construct(
         protected Cosinesimilarityservice $cosine
     ) {}
 
     
-    public function search(array $filters, int $perPage = 6): LengthAwarePaginator
+    public function search(array $filters, int $perPage = 6, int $page = 1): LengthAwarePaginator
     {
-        $query = Property::query()
-            ->approved()
-            ->with('seller');
+        // 1. Logic: Cache identical search queries for 10 minutes to reduce server load
+        $cacheKey = 'search_' . md5(json_encode($filters) . '_page_' . $page);
 
-        $this->applyFilters($query, $filters);
-        $this->applyScoring($query, $filters);
-        $this->applySorting($query, $filters);
+        return Cache::remember($cacheKey, 600, function () use ($filters, $perPage, $page) {
+            
+            $query = Property::query()
+                ->approved()
+                ->with('seller');
 
-        $paginator = $query
-            ->paginate(min(max($perPage, 6), 48))
-            ->withQueryString();
+            $this->applyFilters($query, $filters);
+            $this->applyScoring($query, $filters);
+            $this->applySorting($query, $filters);
 
-        // If there's a text query, blend cosine score into relevance_score
-        if (!empty($filters['q'])) {
-            $paginator->getCollection()->transform(function ($property) use ($filters) {
-                $cosineScore = $this->cosine->score($property, $filters['q']);
+            $paginator = $query
+                ->paginate(min(max($perPage, 6), 48), ['*'], 'page', $page)
+                ->withQueryString();
 
-                // Blend: DB relevance_score (0–100 range) + cosine (0–1) × text weight
-                $property->relevance_score = ($property->relevance_score ?? 0)
-                    + ($cosineScore * self::WEIGHTS['text']);
+            // 3. Logic: If there's a text query, blend cosine score into relevance_score
+            if (!empty($filters['q'])) {
+                $paginator->getCollection()->transform(function ($property) use ($filters) {
+                    $cosineScore = $this->cosine->score($property, $filters['q']);
 
-                $property->cosine_score = round($cosineScore, 4);
-                return $property;
-            });
+                    // Blend: DB relevance_score (0–100 range) + cosine (0–1) × text weight
+                    $property->relevance_score = ($property->relevance_score ?? 0)
+                        + ($cosineScore * self::WEIGHTS['text']);
 
-            // Re-sort the current page by final blended score
-            $sorted = $paginator->getCollection()->sortByDesc('relevance_score')->values();
-            $paginator->setCollection($sorted);
-        }
+                    $property->cosine_score = round($cosineScore, 4);
+                    return $property;
+                });
 
-        return $paginator;
+                // Re-sort the current page by final blended score
+                $sorted = $paginator->getCollection()->sortByDesc('relevance_score')->values();
+                $paginator->setCollection($sorted);
+            }
+
+            return $paginator;
+        });
     }
 
    
@@ -329,8 +350,8 @@ class PropertyRecommendationService
         if (empty($data['min_price']) && empty($data['max_price']))
             return;
 
-        $min       = $data['min_price'] ?? 0;
-        $max       = $data['max_price'] ?? 999999999;
+        $min       = !empty($data['min_price']) ? (float) $data['min_price'] : 0;
+        $max       = !empty($data['max_price']) ? (float) $data['max_price'] : 999999999;
         $target    = ($min + $max) / 2;
         $tolerance = $target * self::TOLERANCE['price'];
 

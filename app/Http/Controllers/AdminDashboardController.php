@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Property;
-use App\Models\Admin;
+use App\Models\Enquiry;
+use App\Models\UserRecommendation;
+use Illuminate\Support\Facades\DB;
 
 class AdminDashboardController extends Controller
 {
@@ -23,7 +25,19 @@ class AdminDashboardController extends Controller
             'rejected_properties' => Property::where('status', 'rejected')->count(),
             'total_sellers' => User::where('role', 'owner')->count(),
             'total_buyers' => User::where('role', 'customer')->count(),
+            
+            // Intelligence Stats
+            'total_enquiries' => Enquiry::count(),
+            'high_quality_leads' => Enquiry::where('match_score', '>', 0.7)->count(),
+            'engine_cached_recs' => UserRecommendation::count(),
         ];
+
+        // Get top locations for properties
+        $topLocations = Property::select('location', DB::raw('count(*) as count'))
+            ->groupBy('location')
+            ->orderBy('count', 'desc')
+            ->take(5)
+            ->get();
 
         // Get recent properties pending review
         $pendingProperties = Property::where('status', 'pending')
@@ -35,7 +49,7 @@ class AdminDashboardController extends Controller
         // Get recent users
         $recentUsers = User::latest()->take(5)->get();
 
-        return view('admin.dashboard', compact('stats', 'pendingProperties', 'recentUsers'));
+        return view('admin.dashboard', compact('stats', 'pendingProperties', 'recentUsers', 'topLocations'));
     }
 
     /**
@@ -54,6 +68,11 @@ class AdminDashboardController extends Controller
     {
         $properties = Property::with('seller')->latest()->paginate(12);
         return view('admin.properties', compact('properties'));
+    }
+
+    public function settings()
+    {
+        return view('admin.settings');
     }
 
     /**

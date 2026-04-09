@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Property;
 use App\Models\PropertyView;
 use App\Models\Favorite;
+use App\Models\UserRecommendation;
 use Illuminate\Support\Collection;
 
 class UserSuggestionService
@@ -14,89 +15,115 @@ class UserSuggestionService
         protected Cosinesimilarityservice $cosineService,
     ) {}
 
+    /**
+     * Get suggestions for a user.
+     * This now checks the pre-calculated cache table first for better performance.
+     */
     public function getSuggestions(?object $user, ?string $query): array
     {
-        $properties = collect();
-        $strategyLabel = '';
+        // 1. If there's a search query, always use the real-time search engine
+        if ($query) {
+            $properties = Property::approved()
+                ->search($query)
+                ->take(12)
+                ->get();
 
+            $properties = $this->cosineService->rerank($properties, $query);
+
+            return [
+                'properties' => $properties,
+                'strategyLabel' => 'Search Results'
+            ];
+        }
+
+        // 2. For authenticated users, check the pre-calculated recommendations table
         if ($user) {
-            $favorites = Favorite::where('user_id', $user->id)
+            $cached = UserRecommendation::where('user_id', $user->id)
                 ->with('property')
-                ->latest()
-                ->take(5)
-                ->get()
-                ->pluck('property')
-                ->filter();
+                ->orderByDesc('score')
+                ->take(12)
+                ->get();
 
-            if ($favorites->isNotEmpty()) {
-                $preferences = $this->extractPreferences($favorites);
-                $properties = $this->recommendationService->personalized($preferences, 12);
+            if ($cached->isNotEmpty()) {
+                $properties = $cached->pluck('property')->map(function ($property, $i) use ($cached) {
+                    $recommendation = $cached[$i];
+                    $property->hybrid_score = $recommendation->score;
+                    $property->hybrid_reasons = $recommendation->reasons;
+                    
+                    // Map cached reasons back to attributes for the UI
+                    $property->hybrid_content_score = $recommendation->reasons['content'] ?? 0;
+                    $property->hybrid_collab_score = $recommendation->reasons['collab'] ?? 0;
+                    $property->hybrid_pop_score = $recommendation->reasons['pop'] ?? 0;
+                    
+                    return $property;
+                });
+
+                return [
+                    'properties' => $properties,
+                    'strategyLabel' => 'Personalised for you (Optimized)'
+                ];
+            }
+        }
+
+        // 3. Fallback to real-time hybrid calculation if cache is empty
+        return $this->calculateRealtimeSuggestions($user);
+    }
+
+    /**
+     * The original real-time logic as a fallback
+     */
+    public function calculateRealtimeSuggestions(?object $user): array
+    {
+        $properties = collect();
+        $strategyLabel = 'Recommended for you';
+        $referenceProperty = null;
+
+        // Try to find an anchor property to base recommendations on
+        if ($user) {
+            $latestFavorite = Favorite::where('user_id', $user->id)->latest()->first();
+            if ($latestFavorite) {
+                $referenceProperty = $latestFavorite->property;
                 $strategyLabel = 'Based on your favorites';
             }
-        }
 
-        if ($properties->isEmpty() && $user) {
-            $recentViews = PropertyView::where('user_id', $user->id)
-                ->with('property')
-                ->latest()
-                ->take(10)
-                ->get()
-                ->pluck('property')
-                ->filter();
-
-            if ($recentViews->isNotEmpty()) {
-                $preferences = $this->extractPreferences($recentViews);
-                $properties = $this->recommendationService->personalized($preferences, 12);
-                $strategyLabel = 'Based on recently viewed';
+            if (!$referenceProperty) {
+                $latestView = PropertyView::where('user_id', $user->id)->latest()->first();
+                if ($latestView) {
+                    $referenceProperty = $latestView->property;
+                    $strategyLabel = 'Based on recently viewed';
+                }
             }
         }
 
-        if ($properties->isEmpty() && !$user) {
+        // Guest anchor
+        if (!$user) {
             $sessionIds = session()->get('recently_viewed', []);
             if (!empty($sessionIds)) {
-                $sessionViewed = Property::whereIn('id', $sessionIds)
-                    ->approved()
-                    ->get()
-                    ->sortBy(fn($p) => array_search($p->id, $sessionIds))
-                    ->values();
-
-                if ($sessionViewed->isNotEmpty()) {
-                    $preferences = $this->extractPreferences($sessionViewed);
-                    $properties = $this->recommendationService->personalized($preferences, 12);
+                $referenceProperty = Property::find($sessionIds[0]);
+                if ($referenceProperty) {
                     $strategyLabel = 'Based on your browsing history';
                 }
             }
         }
 
-        if ($properties->isEmpty() && $user && $user->city) {
-            $properties = Property::approved()
-                ->where('location', 'LIKE', "%{$user->city}%")
-                ->inRandomOrder()
-                ->take(12)
-                ->get();
-            $strategyLabel = 'Properties in your city';
+        if ($referenceProperty) {
+            $properties = $this->recommendationService->getSimilarProperties($referenceProperty, $user?->id, 12);
         }
 
-        // Strategy 6: Hybrid recommendations as fallback
-        if ($properties->isEmpty() && $user) {
+        // Global Hybrid Fallback (Popularity based)
+        if ($properties->isEmpty()) {
             $properties = Property::approved()
-                ->inRandomOrder()
-                ->take(20)
+                ->orderByDesc('views_count')
+                ->take(12)
                 ->get()
                 ->map(function ($property) use ($user) {
-                    // Let's call getHybridFallback or similar in recommendation service?
-                    // Actually, getting random and assigning score is not ideal, but we can score them.
                     $pop = $this->recommendationService->calculatePopularity($property);
-                    $collab = $this->recommendationService->calculateCollaborative($user->id, $property->id);
+                    $collab = $user ? $this->recommendationService->calculateCollaborative($user->id, $property->id) : 0;
                     $property->hybrid_pop_score = $pop;
                     $property->hybrid_collab_score = $collab;
-                    $property->hybrid_content_score = 0; // fallback has no content ref
                     $property->hybrid_score = (0.3 * $collab) + (0.2 * $pop);
                     return $property;
                 })
-                ->filter(fn($p) => $p->hybrid_score > 0.1)
-                ->sortByDesc('hybrid_score')
-                ->take(12)
                 ->values();
                 
             if ($properties->isNotEmpty()) {
@@ -104,43 +131,9 @@ class UserSuggestionService
             }
         }
 
-        if ($properties->isEmpty()) {
-            $properties = Property::approved()
-                ->orderBy('views_count', 'desc')
-                ->take(12)
-                ->get();
-            $strategyLabel = 'Trending Properties';
-        }
-
-        if ($query && $properties->isNotEmpty()) {
-            $properties = $this->cosineService->rerank($properties, $query);
-            $strategyLabel = 'Search Results';
-        }
-
         return [
             'properties' => $properties,
             'strategyLabel' => $strategyLabel
         ];
-    }
-
-    private function extractPreferences($properties): array
-    {
-        return [
-            'purpose'   => $this->getMostFrequent($properties, 'purpose'),
-            'type'      => $this->getMostFrequent($properties, 'type'),
-            'category'  => $this->getMostFrequent($properties, 'category'),
-            'min_price' => $properties->min('price') * 0.8,
-            'max_price' => $properties->max('price') * 1.2,
-            'bedrooms'  => $this->getMostFrequent($properties, 'bedrooms'),
-        ];
-    }
-
-    private function getMostFrequent($collection, string $field): mixed
-    {
-        $values = $collection->pluck($field)->filter();
-        if ($values->isEmpty()) return null;
-        $counts = array_count_values($values->toArray());
-        arsort($counts);
-        return key($counts);
     }
 }

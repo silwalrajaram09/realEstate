@@ -261,71 +261,8 @@
                             @endif
                             <div class="price-card-divider"></div>
 
-                            {{-- ═══ ENQUIRY SECTION (Ajax — no page reload) ═══ --}}
-                            <div class="price-card-heading">Enquire About This Property</div>
-
-                            {{-- Toast notification --}}
-                            <div id="enquiryToast"
-                                style="display:none;padding:0.75rem 1rem;border-radius:6px;
-                                       font-size:0.82rem;font-weight:500;margin-bottom:1rem;
-                                       transition:all 0.3s ease;">
-                            </div>
-
-                            {{-- Form inputs --}}
-                            <div id="enquiryForm">
-                                <input  type="text"
-                                        id="enq_name"
-                                        class="contact-input"
-                                        placeholder="Your Name"
-                                        @auth value="{{ auth()->user()->name }}" @endauth
-                                        required>
-
-                                <input  type="email"
-                                        id="enq_email"
-                                        class="contact-input"
-                                        placeholder="Email Address"
-                                        @auth value="{{ auth()->user()->email }}" @endauth
-                                        required>
-
-                                <input  type="tel"
-                                        id="enq_phone"
-                                        class="contact-input"
-                                        placeholder="Phone Number"
-                                        required>
-
-                                <textarea id="enq_message"
-                                          class="contact-input"
-                                          placeholder="Optional message…"
-                                          rows="3"
-                                          style="resize:vertical;font-family:inherit;"></textarea>
-
-                                <button id="enquirySubmitBtn"
-                                        type="button"
-                                        class="contact-submit"
-                                        onclick="submitEnquiry('{{ route('buyer.properties.enquire', $property->id) }}')">
-        Request Information
-                                </button>
-                            </div>
-
-                            {{-- Success state shown after submit --}}
-                            <div id="enquirySuccess" style="display:none;text-align:center;padding:1.5rem 0;">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="none"
-                                     viewBox="0 0 24 24" stroke="#5a8a5a" stroke-width="1.5"
-                                     style="margin:0 auto 0.875rem;display:block;">
-                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <p style="font-weight:600;color:#0f0f0f;margin-bottom:0.3rem;font-size:0.95rem;">
-                                    Enquiry Sent!
-                                </p>
-                                <p style="font-size:0.78rem;color:#8c8070;font-weight:300;line-height:1.5;">
-                                    The seller will contact you shortly.<br>
-                                    Check <a href="{{ route('buyer.enquiries.index') }}"
-                                             style="color:#c9a96e;text-decoration:none;font-weight:500;">
-                                        My Enquiries
-                                    </a> for updates.
-                                </p>
-                            </div>
+                            {{-- ═══ SMART ENQUIRY SECTION (Livewire) ═══ --}}
+                            <livewire:property-enquiry :propertyId="$property->id" />
                             {{-- ═══════════════════════════════════════════════ --}}
 
                             <div class="action-row">
@@ -414,7 +351,7 @@
                                         d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                                 </svg>Call Now
                             </button>
-                            <button class="seller-msg-btn" onclick="submitEnquiry('{{ route('buyer.properties.enquire', $property->id) }}')">
+                            <button class="seller-msg-btn" onclick="document.querySelector('.enquiry-card').scrollIntoView({behavior:'smooth'})">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none"
                                     viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
                                     <path stroke-linecap="round" stroke-linejoin="round"
@@ -591,60 +528,7 @@
             /* ═══════════════════════════════════════
              *  ENQUIRY — Ajax submit (no page reload)
              * ═══════════════════════════════════════ */
-            async function submitEnquiry(url) {
-    const btn     = document.getElementById('enquirySubmitBtn');
-    const name    = document.getElementById('enq_name').value.trim();
-    const email   = document.getElementById('enq_email').value.trim();
-    const phone   = document.getElementById('enq_phone').value.trim();
-    const message = document.getElementById('enq_message').value.trim();
-
-    // Validation
-    if (!name || !email || !phone) {
-        showEnqToast('Please fill all required fields.', 'error');
-        return;
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        showEnqToast('Invalid email.', 'error');
-        return;
-    }
-
-    btn.disabled = true;
-    btn.textContent = 'Sending...';
-
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                'Accept': 'application/json',
-            },
-            body: JSON.stringify({ name, email, phone, message }),
-        });
-
-        const data = await response.json();
-
-        if (response.ok && data.success) {
-            document.getElementById('enquiryForm').style.display = 'none';
-            document.getElementById('enquirySuccess').style.display = 'block';
-        } else {
-            showEnqToast(data.message || 'Something went wrong.', 'error');
-            btn.disabled = false;
-            btn.textContent = 'Request Information';
-        }
-
-    } catch (error) {
-        showEnqToast('Network error.', 'error');
-        btn.disabled = false;
-        btn.textContent = 'Request Information';
-    }
-}
-
-// Simple toast
-function showEnqToast(message, type = 'success') {
-    alert(message); // replace with your toast UI
-}            /* ═══════════════════════════════════════
+            /* ═══════════════════════════════════════
              *  MAP
              * ═══════════════════════════════════════ */
             function initMap() {

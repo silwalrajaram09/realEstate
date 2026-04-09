@@ -6,7 +6,7 @@ use App\Http\Controllers\AdminDashboardController;
 use Illuminate\Support\Facades\Route;
 
 
-Route::prefix('admin')->name('admin.')->middleware('guest:admin')->group(function () {
+Route::name('admin.')->middleware('guest:admin')->group(function () {
 
     // SHOW LOGIN PAGE (GET)
     Route::get('/login', [AdminAuthController::class, 'showLoginForm'])
@@ -19,7 +19,7 @@ Route::prefix('admin')->name('admin.')->middleware('guest:admin')->group(functio
 
 
 
-Route::prefix('admin')->name('admin.')->middleware('admin.auth')->group(function () {
+Route::name('admin.')->middleware('admin.auth')->group(function () {
 
     Route::get('/dashboard', [AdminDashboardController::class, 'index'])
         ->name('dashboard');
@@ -32,6 +32,12 @@ Route::prefix('admin')->name('admin.')->middleware('admin.auth')->group(function
 
     Route::get('/properties', [AdminDashboardController::class, 'properties'])
         ->name('properties');
+
+    Route::get('/analytics', [\App\Http\Controllers\AdminAnalyticsController::class, 'index'])
+        ->name('analytics');
+
+    Route::get('/settings', [AdminDashboardController::class, 'settings'])
+        ->name('settings');
 
     Route::patch('/properties/{property}/approve', [AdminDashboardController::class, 'approveProperty'])
         ->name('properties.approve');

@@ -484,3 +484,21 @@
 .prop-card {
     animation: fadeUp 0.4s ease both;
 }
+
+/* ── Match Pills ── */
+.prop-match-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    border-radius: 4px;
+    padding: 0.25rem 0.625rem;
+    border: 1px solid transparent;
+    transition: transform 0.2s ease;
+}
+.prop-match-pill:hover {
+    transform: scale(1.03);
+}
+

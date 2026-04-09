@@ -20,10 +20,13 @@ class Enquiry extends Model
         'status',
         'reply',
         'replied_at',
+        'match_score',
+        'match_details',
     ];
 
     protected $casts = [
         'replied_at' => 'datetime',
+        'match_details' => 'array',
     ];
 
     /* ─── Relationships ─── */

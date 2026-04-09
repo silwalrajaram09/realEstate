@@ -13,6 +13,7 @@ use App\Services\PropertySearchService;
 use App\Services\PropertyRecommendationService;
 use App\Services\Cosinesimilarityservice;
 use App\Services\UserSuggestionService;
+use App\Jobs\TrackPropertyViewJob;
 
 class BuyerPropertyController extends Controller
 {
@@ -29,39 +30,19 @@ class BuyerPropertyController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    public function index(Request $request)
+    public function index()
     {
-        $filters       = $this->extractFilters($request);
-        $properties    = $this->recommendationService->search($filters);
-        $hasTextSearch = !empty($filters['q']);
-
-        return view('buyer.properties.index', compact('properties', 'filters', 'hasTextSearch'));
+        return view('buyer.properties.index');
     }
 
-    public function buy(Request $request)
+    public function buy()
     {
-        $filters = array_merge(
-            $this->extractFilters($request, excludes: ['purpose']),
-            ['purpose' => 'buy']
-        );
-
-        $properties    = $this->recommendationService->search($filters);
-        $hasTextSearch = !empty($filters['q']);
-
-        return view('buyer.properties.buy', compact('properties', 'filters', 'hasTextSearch'));
+        return view('buyer.properties.buy');
     }
 
-    public function rent(Request $request)
+    public function rent()
     {
-        $filters = array_merge(
-            $this->extractFilters($request, excludes: ['purpose']),
-            ['purpose' => 'rent']
-        );
-
-        $properties    = $this->recommendationService->search($filters);
-        $hasTextSearch = !empty($filters['q']);
-
-        return view('buyer.properties.rent', compact('properties', 'filters', 'hasTextSearch'));
+        return view('buyer.properties.rent');
     }
 
     /*
@@ -304,10 +285,7 @@ class BuyerPropertyController extends Controller
     private function trackView(Property $property): void
     {
         if ($user = Auth::user()) {
-            PropertyView::updateOrCreate(
-                ['user_id' => $user->id, 'property_id' => $property->id],
-                ['created_at' => now()]
-            );
+            TrackPropertyViewJob::dispatch($user->id, $property->id);
         } else {
             $recentlyViewed = session()->get('recently_viewed', []);
             $recentlyViewed = array_filter($recentlyViewed, fn($id) => $id != $property->id);

@@ -31,6 +31,7 @@ Route::get('/', [HomeController::class, 'index'])->name('home');
 
 // Route::get('/buy', [PropertyController::class, 'buy'])->name('buy.filter');
 // Route::get('/sell', [PropertyController::class, 'sell'])->name('sell.filter');
+
 // Route::get('/properties', [PropertyController::class, 'index'])->name('properties.index');
 
 // Route::get('/search', [PropertySearchController::class, 'index'])
@@ -133,13 +134,7 @@ Route::middleware(['auth'])->group(function () {
 
     });
 
-    // Admin Routes
-    // Route::middleware('role:admin')->group(function () {
-    //     Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])
-    //         ->name('admin.dashboard');
 
-    //     // Future admin routes (manage users, properties, algorithm)
-    // });
 
 });
 
